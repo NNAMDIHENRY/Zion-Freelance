@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import { AppProviders } from "@/components/providers/app-providers";
+
 export const metadata: Metadata = {
   title: {
     default: "Zion TeCHer Freelance",
@@ -17,7 +19,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

@@ -39,10 +39,10 @@ export function Navbar({ className }: { className?: string }) {
 
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" className="hidden sm:inline-flex">
-            <Link href="/api/auth/signin">Sign in</Link>
+            <Link href="/auth/login">Sign in</Link>
           </Button>
           <Button asChild>
-            <Link href="/api/auth/signin">Get started</Link>
+            <Link href="/auth/register">Get started</Link>
           </Button>
         </div>
       </div>

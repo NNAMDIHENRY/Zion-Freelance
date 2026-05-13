@@ -150,10 +150,27 @@ model User {
   reviewsWritten Review[] @relation("ReviewAuthor")
   reviewsAbout   Review[] @relation("ReviewSubject")
 
+  passwordResetTokens PasswordResetToken[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([role, createdAt])
+}
+
+/// One-time password reset tokens (store hash only; raw token sent by email).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([tokenHash])
 }
 
 model FreelancerProfile {

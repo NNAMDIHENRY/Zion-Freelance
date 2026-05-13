@@ -21,7 +21,7 @@ export default function HomePage() {
             </a>
             <a
               className="rounded-lg bg-zinc-950 px-3 py-2 text-sm font-semibold text-white shadow-subtle hover:bg-zinc-900"
-              href="/api/auth/signin"
+              href="/auth/login"
             >
               Sign in
             </a>
@@ -45,7 +45,7 @@ export default function HomePage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
                 className="inline-flex items-center justify-center rounded-xl bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white shadow-subtle hover:bg-zinc-900"
-                href="/api/auth/signin"
+                href="/auth/register"
               >
                 Get started
               </a>
@@ -94,8 +94,8 @@ export default function HomePage() {
           <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-subtle">
             <div className="text-sm font-semibold">Next module</div>
             <div className="mt-2 text-sm text-zinc-600">
-              Authentication + roles (Client/Freelancer/Admin) will be wired
-              next, then dashboards and project posting.
+              Authentication with roles, JWT sessions, and protected dashboards
+              are live. Next: project posting and marketplace flows.
             </div>
           </div>
         </section>
