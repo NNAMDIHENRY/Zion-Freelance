@@ -27,6 +27,7 @@ enum ProjectStatus {
 
 enum ProposalStatus {
   PENDING
+  REVIEWED
   ACCEPTED
   REJECTED
   WITHDRAWN
@@ -286,6 +287,7 @@ model Project {
   budgetMin   Decimal?      @db.Decimal(19, 4)
   budgetMax   Decimal?      @db.Decimal(19, 4)
   currency    String        @default("USD")
+  deadline    DateTime?
   status      ProjectStatus @default(DRAFT)
 
   clientId String
@@ -309,12 +311,13 @@ model Project {
 }
 
 model Proposal {
-  id          String         @id @default(cuid())
-  message     String
-  bidAmount   Decimal        @db.Decimal(19, 4)
-  currency    String         @default("USD")
-  deliveryEta DateTime?
-  status      ProposalStatus @default(PENDING)
+  id             String         @id @default(cuid())
+  proposedPrice  Decimal        @db.Decimal(19, 4)
+  currency       String         @default("USD")
+  coverLetter    String
+  deliveryDays   Int?
+  status         ProposalStatus @default(PENDING)
+  withdrawnAt    DateTime?
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

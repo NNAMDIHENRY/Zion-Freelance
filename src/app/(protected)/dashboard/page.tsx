@@ -1,45 +1,91 @@
-import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
 import { Role } from "@prisma/client";
-import { Button } from "@/components/ui/button";
+
+import { AnalyticsCard } from "@/components/dashboard/widgets/AnalyticsCard";
+import { StatCard } from "@/components/dashboard/widgets/StatCard";
+import { getSession } from "@/lib/auth/session";
+import { getUserRole } from "@/lib/auth/role";
+
+function roleCopy(role: Role) {
+  switch (role) {
+    case Role.FREELANCER:
+      return {
+        headline: "Freelancer overview",
+        sub: "Track proposals, active work, and payouts in one calm surface."
+      };
+    case Role.ADMIN:
+      return {
+        headline: "Admin overview",
+        sub: "Monitor users and platform health — deeper tooling arrives in later modules."
+      };
+    default:
+      return {
+        headline: "Client overview",
+        sub: "Post roles, compare proposals, and keep spend predictable."
+      };
+  }
+}
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    return null; // or redirect("/auth/login") if you want strict guard
+  const session = await getSession();
+  const role = getUserRole(session);
+  if (!role) {
+    return null;
   }
 
-  const user = session.user;
-  const role = user.role;
+  const copy = roleCopy(role);
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Hello, {user.name}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          You are signed in as{" "}
-          <span className="font-medium text-foreground">
-            {String(role ?? "").replaceAll("_", " ")}
-          </span>
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{copy.headline}</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{copy.sub}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-2xl border bg-card p-5">
-          Session active ✔
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Active pipeline"
+          value={role === Role.CLIENT ? "6" : role === Role.FREELANCER ? "4" : "128"}
+          description="Illustrative placeholder metrics."
+          trend="up"
+          trendLabel="+12%"
+        />
+        <StatCard
+          title="Win rate"
+          value={role === Role.FREELANCER ? "38%" : "—"}
+          description={role === Role.FREELANCER ? "Rolling 90 days (mock)." : "Shown for freelancer accounts."}
+          trend={role === Role.FREELANCER ? "up" : "neutral"}
+          trendLabel={role === Role.FREELANCER ? "+4 pts" : undefined}
+        />
+        <StatCard
+          title="Spend / earnings"
+          value={
+            role === Role.CLIENT ? "$12.4k" : role === Role.FREELANCER ? "$8.1k" : "32 open items"
+          }
+          description={
+            role === Role.ADMIN
+              ? "Operational queue depth (illustrative)."
+              : "Connect payouts to populate this card."
+          }
+          trend="neutral"
+        />
+        <StatCard
+          title="SLA health"
+          value="99.2%"
+          description="Uptime-style signal for admins; mock for others."
+          trend="up"
+          trendLabel="+0.1%"
+        />
+      </div>
 
-        <div className="rounded-2xl border bg-card p-5">
-          Protected dashboard ✔
-        </div>
-
-        <div className="rounded-2xl border bg-card p-5">
-          Role: {role}
-        </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <AnalyticsCard
+          title="Throughput"
+          description="Stacked area or bar chart lands here without pulling new dependencies."
+        />
+        <AnalyticsCard
+          title="Quality"
+          description="Pair CSAT / dispute rate visuals once analytics APIs exist."
+        />
       </div>
     </div>
   );
