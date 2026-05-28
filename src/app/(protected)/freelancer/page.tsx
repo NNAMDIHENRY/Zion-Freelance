@@ -1,15 +1,5 @@
-import { Role } from "@prisma/client";
+import { redirect } from "next/navigation";
 
-import { WorkspaceStub } from "@/components/dashboard/WorkspaceStub";
-import { requireRole } from "@/lib/auth/guard";
-
-export default async function FreelancerWorkspacePage() {
-  await requireRole([Role.FREELANCER]);
-
-  return (
-    <WorkspaceStub
-      title="Freelancer workspace"
-      description="Discover projects, send proposals, and deliver work from here."
-    />
-  );
+export default function FreelancerWorkspacePage() {
+  redirect("/freelancer/jobs");
 }

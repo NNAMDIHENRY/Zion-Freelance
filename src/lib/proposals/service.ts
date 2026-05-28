@@ -3,12 +3,19 @@ import "server-only";
 import {
   ContractStatus,
   Prisma,
+  ProjectModerationStatus,
   ProjectStatus,
   ProposalStatus,
   Role
 } from "@prisma/client";
 
+import { initializeContractWorkflow } from "@/lib/contracts/service";
 import { prisma } from "@/lib/db";
+import {
+  notifyProposalAccepted,
+  notifyProposalRejected,
+  notifyProposalSubmitted
+} from "@/lib/notifications/workflow-events";
 import { getClientProfileIdForUser, getFreelancerProfileIdForUser } from "@/lib/projects/service";
 
 import type { ProposalWriteInput } from "@/lib/validators/proposal";
@@ -92,7 +99,11 @@ export async function getOpenProjectForFreelancerProposal(
   }>
 > {
   const project = await prisma.project.findFirst({
-    where: { id: projectId, status: ProjectStatus.OPEN },
+    where: {
+      id: projectId,
+      status: ProjectStatus.OPEN,
+      moderationStatus: ProjectModerationStatus.ACTIVE
+    },
     include: {
       client: { select: { userId: true } },
       category: { select: { name: true } },
@@ -177,6 +188,29 @@ export async function submitProposal(
     },
     select: { id: true }
   });
+
+  const meta = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: {
+      title: true,
+      client: { select: { userId: true } },
+      proposals: {
+        where: { id: created.id },
+        select: { freelancer: { select: { user: { select: { name: true } } } } }
+      }
+    }
+  });
+  if (meta?.client.userId) {
+    const freelancerName = meta.proposals[0]?.freelancer.user.name ?? "A freelancer";
+    void notifyProposalSubmitted({
+      clientUserId: meta.client.userId,
+      projectId,
+      projectTitle: meta.title,
+      proposalId: created.id,
+      freelancerName
+    });
+  }
+
   return { ok: true, data: { id: created.id } };
 }
 
@@ -334,10 +368,28 @@ export async function rejectProposal(
     return err("This proposal cannot be rejected", "BAD_STATE");
   }
 
+  const detail = await prisma.proposal.findUnique({
+    where: { id: proposal.id },
+    select: {
+      id: true,
+      project: { select: { title: true } },
+      freelancer: { select: { userId: true } }
+    }
+  });
+
   await prisma.proposal.update({
     where: { id: proposal.id },
     data: { status: ProposalStatus.REJECTED }
   });
+
+  if (detail?.freelancer.userId) {
+    void notifyProposalRejected({
+      freelancerUserId: detail.freelancer.userId,
+      proposalId: detail.id,
+      projectTitle: detail.project.title
+    });
+  }
+
   return { ok: true, data: { id: proposal.id } };
 }
 
@@ -359,9 +411,11 @@ export async function acceptProposal(
       project: {
         select: {
           id: true,
+          title: true,
           contract: { select: { id: true } }
         }
-      }
+      },
+      freelancer: { select: { userId: true } }
     }
   });
   if (!proposal) return err("Proposal not found", "NOT_FOUND");
@@ -374,6 +428,15 @@ export async function acceptProposal(
   ) {
     return err("This proposal cannot be accepted", "BAD_STATE");
   }
+
+  const rejectedBefore = await prisma.proposal.findMany({
+    where: {
+      projectId: proposal.projectId,
+      id: { not: proposal.id },
+      status: { in: [ProposalStatus.PENDING, ProposalStatus.REVIEWED] }
+    },
+    select: { id: true, freelancer: { select: { userId: true } } }
+  });
 
   const result = await prisma.$transaction(async (tx) => {
     await tx.proposal.updateMany({
@@ -406,12 +469,36 @@ export async function acceptProposal(
       select: { id: true }
     });
 
+    await initializeContractWorkflow(tx, {
+      contractId: contract.id,
+      agreedAmount: proposal.proposedPrice,
+      currency: proposal.currency,
+      deliveryDays: proposal.deliveryDays,
+      deliveryTerms: proposal.coverLetter.slice(0, 500)
+    });
+
     return {
       proposalId: proposal.id,
       contractId: contract.id,
       projectId: proposal.projectId
     };
   });
+
+  void notifyProposalAccepted({
+    freelancerUserId: proposal.freelancer.userId,
+    proposalId: result.proposalId,
+    contractId: result.contractId,
+    projectTitle: proposal.project.title
+  });
+
+  for (const other of rejectedBefore) {
+    if (other.freelancer.userId === proposal.freelancer.userId) continue;
+    void notifyProposalRejected({
+      freelancerUserId: other.freelancer.userId,
+      proposalId: other.id,
+      projectTitle: proposal.project.title
+    });
+  }
 
   return { ok: true, data: result };
 }

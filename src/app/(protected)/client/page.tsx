@@ -1,15 +1,5 @@
-import { Role } from "@prisma/client";
+import { redirect } from "next/navigation";
 
-import { WorkspaceStub } from "@/components/dashboard/WorkspaceStub";
-import { requireRole } from "@/lib/auth/guard";
-
-export default async function ClientWorkspacePage() {
-  await requireRole([Role.CLIENT]);
-
-  return (
-    <WorkspaceStub
-      title="Client workspace"
-      description="Post projects, review proposals, and manage contracts from here."
-    />
-  );
+export default function ClientWorkspacePage() {
+  redirect("/dashboard/projects");
 }

@@ -37,13 +37,15 @@ export async function POST(
 
   const created: string[] = [];
   for (const file of files) {
+    const buffer = Buffer.from(await file.arrayBuffer());
     const res = await insertProjectAttachmentMetadata({
       projectId,
       clientProfileId: clientId,
       userId: session.user.id,
       originalName: file.name,
       mimeType: file.type,
-      sizeBytes: file.size
+      sizeBytes: file.size,
+      buffer
     });
     if (!res.ok) {
       return NextResponse.json({ error: res.error }, { status: res.error === "Not found" ? 404 : 400 });

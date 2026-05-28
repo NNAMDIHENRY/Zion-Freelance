@@ -3,6 +3,7 @@ import { Role } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
+import { syncMarketplaceTaxonomy } from "@/lib/marketplace/taxonomy";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validators/auth";
 
@@ -32,7 +33,20 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, email, password, role } = parsed.data;
+  const {
+    name,
+    email,
+    password,
+    role,
+    categorySlugs,
+    skillIds,
+    country,
+    phone,
+    city,
+    referralSource,
+    receiveEmailUpdates,
+    acceptedTerms
+  } = parsed.data;
   const normalizedEmail = email.toLowerCase();
 
   const existing = await prisma.user.findUnique({
@@ -47,22 +61,68 @@ export async function POST(req: Request) {
 
   const hashed = await hashPassword(password);
 
+  if (role === Role.FREELANCER) {
+    await syncMarketplaceTaxonomy();
+  }
+
+  let createdUserId = "";
+
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
         name,
         email: normalizedEmail,
         password: hashed,
-        role
+        role,
+        receiveEmailUpdates: receiveEmailUpdates ?? true,
+        termsAcceptedAt: acceptedTerms ? new Date() : null
+      }
+    });
+    createdUserId = user.id;
+
+    await tx.userRegistrationContact.create({
+      data: {
+        userId: user.id,
+        email: normalizedEmail,
+        phone,
+        country,
+        city,
+        referralSource
       }
     });
 
     if (role === Role.CLIENT) {
       await tx.clientProfile.create({ data: { userId: user.id } });
     } else if (role === Role.FREELANCER) {
-      await tx.freelancerProfile.create({ data: { userId: user.id } });
+      const profile = await tx.freelancerProfile.create({
+        data: {
+          userId: user.id,
+          categorySlugs: categorySlugs ?? []
+        }
+      });
+      if (skillIds?.length) {
+        await tx.freelancerSkill.createMany({
+          data: skillIds.map((skillId) => ({
+            freelancerProfileId: profile.id,
+            skillId
+          })),
+          skipDuplicates: true
+        });
+      }
     }
   });
 
-  return NextResponse.json({ ok: true }, { status: 201 });
+  const baseUrl = process.env.NEXTAUTH_URL ?? new URL(req.url).origin;
+  const { createAndSendVerificationEmail } = await import("@/lib/auth/email-verification");
+  await createAndSendVerificationEmail({
+    userId: createdUserId,
+    email: normalizedEmail,
+    name,
+    baseUrl
+  }).catch(() => undefined);
+
+  return NextResponse.json(
+    { ok: true, message: "Account created. Check your email to verify before signing in." },
+    { status: 201 }
+  );
 }

@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -10,7 +11,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { FormAlert } from "@/components/forms/form-alert";
 import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/auth/password-input";
 import { resetPasswordSchema } from "@/lib/validators/auth";
 
 export default function ResetPasswordPage() {
@@ -73,8 +74,10 @@ export default function ResetPasswordPage() {
       }
 
       setSuccess(true);
+      await signOut({ redirect: false });
       setTimeout(() => {
-        router.push("/auth/login");
+        router.push("/auth/login?reset=success");
+        router.refresh();
       }, 1200);
     } finally {
       setLoading(false);
@@ -123,10 +126,9 @@ export default function ResetPasswordPage() {
             error={fieldErrors.password?.[0]}
             hint="At least 8 characters with upper, lower, and a number."
           >
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

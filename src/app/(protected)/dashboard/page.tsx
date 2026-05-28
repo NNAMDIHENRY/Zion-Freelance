@@ -1,9 +1,11 @@
 import { Role } from "@prisma/client";
 
+import { TutorialCoach } from "@/components/onboarding/TutorialCoach";
 import { AnalyticsCard } from "@/components/dashboard/widgets/AnalyticsCard";
 import { StatCard } from "@/components/dashboard/widgets/StatCard";
 import { getSession } from "@/lib/auth/session";
 import { getUserRole } from "@/lib/auth/role";
+import { getDashboardStats } from "@/lib/dashboard/stats";
 
 function roleCopy(role: Role) {
   switch (role) {
@@ -15,7 +17,7 @@ function roleCopy(role: Role) {
     case Role.ADMIN:
       return {
         headline: "Admin overview",
-        sub: "Monitor users and platform health — deeper tooling arrives in later modules."
+        sub: "Monitor users, payouts, and platform health."
       };
     default:
       return {
@@ -28,11 +30,12 @@ function roleCopy(role: Role) {
 export default async function DashboardPage() {
   const session = await getSession();
   const role = getUserRole(session);
-  if (!role) {
+  if (!role || !session?.user?.id) {
     return null;
   }
 
   const copy = roleCopy(role);
+  const stats = await getDashboardStats(session.user.id, role);
 
   return (
     <div className="space-y-8">
@@ -41,50 +44,45 @@ export default async function DashboardPage() {
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{copy.sub}</p>
       </div>
 
+      {role === Role.CLIENT || role === Role.FREELANCER ? <TutorialCoach /> : null}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Active pipeline"
-          value={role === Role.CLIENT ? "6" : role === Role.FREELANCER ? "4" : "128"}
-          description="Illustrative placeholder metrics."
+          value={String(stats.activePipeline)}
+          description={stats.pipelineTrend ?? "Open work and pending items."}
           trend="up"
-          trendLabel="+12%"
         />
         <StatCard
           title="Win rate"
-          value={role === Role.FREELANCER ? "38%" : "—"}
-          description={role === Role.FREELANCER ? "Rolling 90 days (mock)." : "Shown for freelancer accounts."}
-          trend={role === Role.FREELANCER ? "up" : "neutral"}
-          trendLabel={role === Role.FREELANCER ? "+4 pts" : undefined}
+          value={stats.winRate ?? "—"}
+          description={
+            role === Role.FREELANCER ? "Accepted proposals vs submitted." : "Freelancer metric."
+          }
+          trend={stats.winRate ? "up" : "neutral"}
         />
         <StatCard
-          title="Spend / earnings"
-          value={
-            role === Role.CLIENT ? "$12.4k" : role === Role.FREELANCER ? "$8.1k" : "32 open items"
-          }
-          description={
-            role === Role.ADMIN
-              ? "Operational queue depth (illustrative)."
-              : "Connect payouts to populate this card."
-          }
+          title={role === Role.FREELANCER ? "Wallet balance" : "Spend / earnings"}
+          value={stats.spendOrEarnings}
+          description={stats.spendTrend ?? "From your account activity."}
           trend="neutral"
         />
         <StatCard
-          title="SLA health"
-          value="99.2%"
-          description="Uptime-style signal for admins; mock for others."
+          title="Health"
+          value={stats.slaHealth}
+          description="Operational status for your account."
           trend="up"
-          trendLabel="+0.1%"
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <AnalyticsCard
           title="Throughput"
-          description="Stacked area or bar chart lands here without pulling new dependencies."
+          description="Proposal and contract activity over time."
         />
         <AnalyticsCard
           title="Quality"
-          description="Pair CSAT / dispute rate visuals once analytics APIs exist."
+          description="Reviews and satisfaction signals from completed work."
         />
       </div>
     </div>

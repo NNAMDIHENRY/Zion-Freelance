@@ -1,7 +1,8 @@
-import { Role } from "@prisma/client";
+import { ProposalStatus, Role } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { OpenConversationButton } from "@/components/messaging/OpenConversationButton";
 import { ProposalActions } from "@/components/proposals/ProposalActions";
 import { ProposalStatusBadge } from "@/components/proposals/ProposalStatusBadge";
 import { ProposalTimelineDisplay } from "@/components/proposals/ProposalTimelineDisplay";
@@ -68,7 +69,19 @@ export default async function ProposalDetailPage({
               )}
             </p>
           </div>
-          <ProposalStatusBadge status={p.status} />
+          <div className="flex flex-wrap items-center gap-2">
+            <ProposalStatusBadge status={p.status} />
+            {!(
+              session.user.role === Role.FREELANCER && p.status === ProposalStatus.WITHDRAWN
+            ) ? (
+              <OpenConversationButton
+                mode="proposal"
+                proposalId={p.id}
+                label="Open chat"
+                variant="secondary"
+              />
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -102,7 +115,14 @@ export default async function ProposalDetailPage({
               {p.contract ? (
                 <div>
                   <dt className="text-xs text-muted-foreground">Contract</dt>
-                  <dd className="mt-1 font-medium">{statusLabel(p.contract.status)}</dd>
+                  <dd className="mt-1 font-medium">
+                    <Link
+                      href={`/dashboard/contracts/${p.contract.id}`}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      {statusLabel(p.contract.status)}
+                    </Link>
+                  </dd>
                 </div>
               ) : null}
             </dl>

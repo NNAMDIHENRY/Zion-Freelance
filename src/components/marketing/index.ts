@@ -1,3 +1,5 @@
+export { AuthAwareHeroCtas } from "./auth-aware-cta";
+export { LandingSearch } from "./LandingSearch";
 export { Navbar } from "./navbar";
 export { Footer, FooterCta } from "./footer";
 export { HeroSection, HeroIllustration } from "./hero-section";

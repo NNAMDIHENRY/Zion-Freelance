@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getMarketingPricingTiers } from "@/lib/subscriptions/marketing-pricing";
 import { cn } from "@/lib/utils";
 
 export type PricingTier = {
@@ -72,47 +73,5 @@ export function PricingCards({ tiers, className }: PricingCardsProps) {
   );
 }
 
-export const defaultPricingTiers: PricingTier[] = [
-  {
-    name: "Starter",
-    price: "$0",
-    cadence: "/ mo",
-    description: "Explore talent and post your first projects.",
-    features: [
-      "Browse categories & freelancer profiles",
-      "Post up to 3 active listings",
-      "Standard messaging",
-      "Community support"
-    ],
-    cta: { href: "/auth/register", label: "Start free" }
-  },
-  {
-    name: "Professional",
-    price: "$49",
-    cadence: "/ mo",
-    description: "For teams hiring regularly with premium visibility.",
-    features: [
-      "Unlimited project posts",
-      "Featured placement in search",
-      "Priority matching & insights",
-      "Contract templates & milestones",
-      "Email support (24h)"
-    ],
-    cta: { href: "/auth/register", label: "Upgrade" },
-    highlighted: true
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    cadence: "",
-    description: "Compliance, SSO, and dedicated success for large programs.",
-    features: [
-      "Dedicated account manager",
-      "Custom contracts & billing",
-      "Advanced reporting & API access",
-      "SLA & security review",
-      "Volume discounts"
-    ],
-    cta: { href: "/contact", label: "Contact sales" }
-  }
-];
+/** @deprecated Use getMarketingPricingTiers() */
+export const defaultPricingTiers: PricingTier[] = getMarketingPricingTiers();

@@ -2,22 +2,27 @@
 
 import type { ReactNode } from "react";
 
+import { ProposalStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { DataTable, type DataTableColumn } from "@/components/dashboard/ui/DataTable";
+import { OpenConversationButton } from "@/components/messaging/OpenConversationButton";
+import { ProposalActions } from "@/components/proposals/ProposalActions";
 import { ProposalStatusBadge } from "@/components/proposals/ProposalStatusBadge";
 import type { ClientProposalRowDTO } from "@/components/proposals/types";
 import { moneyLabel } from "@/lib/projects/formatting";
 
 export function ClientProjectProposalsTable({
   rows,
-  proposalDetailHref,
-  actions,
+  proposalDetailHref = (proposalId) => `/dashboard/proposals/${proposalId}`,
+  actions = (row) => (
+    <ProposalActions proposalId={row.id} status={row.status} role="client" />
+  ),
   emptyMessage = "No proposals yet. Share your project link to attract talent."
 }: {
   rows: ClientProposalRowDTO[];
-  proposalDetailHref: (proposalId: string) => string;
-  actions: (row: ClientProposalRowDTO) => ReactNode;
+  proposalDetailHref?: (proposalId: string) => string;
+  actions?: (row: ClientProposalRowDTO) => ReactNode;
   emptyMessage?: string;
 }) {
   const columns: DataTableColumn<ClientProposalRowDTO>[] = [
@@ -79,6 +84,15 @@ export function ClientProjectProposalsTable({
           >
             Open
           </Link>
+          {row.status !== ProposalStatus.WITHDRAWN ? (
+            <OpenConversationButton
+              mode="proposal"
+              proposalId={row.id}
+              label="Message"
+              variant="outline"
+              size="sm"
+            />
+          ) : null}
           {actions(row)}
         </div>
       )

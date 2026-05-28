@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
-import { FeatureSection, PricingCards, defaultPricingTiers } from "@/components/marketing";
+import { FeatureSection, PricingCards } from "@/components/marketing";
 import { PricingComparison } from "@/components/marketing/pricing-comparison";
+import { getMarketingPricingTiers } from "@/lib/subscriptions/marketing-pricing";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -34,7 +35,7 @@ export default function PricingPage() {
         title="Choose where to begin."
         description="Every tier includes access to the marketplace. Upgrade when your team is ready for spotlight placement and deeper tooling."
       >
-        <PricingCards tiers={defaultPricingTiers} />
+        <PricingCards tiers={getMarketingPricingTiers()} />
       </FeatureSection>
 
       <FeatureSection

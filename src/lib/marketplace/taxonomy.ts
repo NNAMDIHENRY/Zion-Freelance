@@ -1,40 +1,26 @@
 import "server-only";
 
+import { MARKETPLACE_CATEGORIES } from "@/lib/marketing/categories-data";
+import { MARKETPLACE_SKILL_SEED } from "@/lib/marketplace/skills-seed";
 import { prisma } from "@/lib/db";
 
-export const MARKETPLACE_CATEGORY_SEED = [
-  { slug: "web-development", name: "Web development", description: "Websites, web apps, APIs" },
-  { slug: "mobile-development", name: "Mobile development", description: "iOS, Android, cross-platform" },
-  { slug: "design-creative", name: "Design & creative", description: "UI/UX, branding, graphics" },
-  { slug: "writing-content", name: "Writing & content", description: "Copy, blogs, technical writing" },
-  { slug: "marketing-growth", name: "Marketing & growth", description: "SEO, ads, social, analytics" },
-  { slug: "data-ai", name: "Data & AI", description: "Analytics, ML, automation" },
-  { slug: "devops-cloud", name: "DevOps & cloud", description: "CI/CD, infra, reliability" },
-  { slug: "business-support", name: "Business & support", description: "VA, ops, consulting" }
-] as const;
+export { MARKETPLACE_SKILL_SEED };
 
-export const MARKETPLACE_SKILL_SEED = [
-  { slug: "typescript", name: "TypeScript" },
-  { slug: "javascript", name: "JavaScript" },
-  { slug: "react", name: "React" },
-  { slug: "nextjs", name: "Next.js" },
-  { slug: "nodejs", name: "Node.js" },
-  { slug: "postgresql", name: "PostgreSQL" },
-  { slug: "prisma", name: "Prisma" },
-  { slug: "tailwind-css", name: "Tailwind CSS" },
-  { slug: "figma", name: "Figma" },
-  { slug: "ui-ux", name: "UI/UX design" },
-  { slug: "content-writing", name: "Content writing" },
-  { slug: "seo", name: "SEO" },
-  { slug: "python", name: "Python" },
-  { slug: "docker", name: "Docker" },
-  { slug: "aws", name: "AWS" },
-  { slug: "flutter", name: "Flutter" },
-  { slug: "swift", name: "Swift" },
-  { slug: "kotlin", name: "Kotlin" }
-] as const;
+export const MARKETPLACE_CATEGORY_SEED = MARKETPLACE_CATEGORIES.map((c) => ({
+  slug: c.slug,
+  name: c.name,
+  description: c.description
+}));
 
 export async function syncMarketplaceTaxonomy() {
+  try {
+    await syncMarketplaceTaxonomyInner();
+  } catch (error) {
+    console.error("[taxonomy] sync failed", error);
+  }
+}
+
+async function syncMarketplaceTaxonomyInner() {
   for (const c of MARKETPLACE_CATEGORY_SEED) {
     await prisma.category.upsert({
       where: { slug: c.slug },
@@ -43,10 +29,39 @@ export async function syncMarketplaceTaxonomy() {
     });
   }
   for (const s of MARKETPLACE_SKILL_SEED) {
-    await prisma.skill.upsert({
-      where: { slug: s.slug },
-      create: { name: s.name, slug: s.slug },
-      update: { name: s.name }
-    });
+    const bySlug = await prisma.skill.findUnique({ where: { slug: s.slug } });
+    if (bySlug) {
+      if (bySlug.name !== s.name) {
+        const nameConflict = await prisma.skill.findFirst({
+          where: { name: s.name, NOT: { id: bySlug.id } }
+        });
+        if (!nameConflict) {
+          await prisma.skill.update({ where: { id: bySlug.id }, data: { name: s.name } });
+        }
+      }
+      continue;
+    }
+
+    const byName = await prisma.skill.findFirst({ where: { name: s.name } });
+    if (byName) {
+      const slugFree = !(await prisma.skill.findFirst({
+        where: { slug: s.slug, NOT: { id: byName.id } }
+      }));
+      if (slugFree) {
+        await prisma.skill.update({
+          where: { id: byName.id },
+          data: { slug: s.slug, name: s.name }
+        });
+      }
+      continue;
+    }
+
+    try {
+      await prisma.skill.create({ data: { name: s.name, slug: s.slug } });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "P2002") continue;
+      throw error;
+    }
   }
 }

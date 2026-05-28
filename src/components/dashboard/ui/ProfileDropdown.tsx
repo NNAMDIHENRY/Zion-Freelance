@@ -1,19 +1,20 @@
 "use client";
 
-import { signOut } from "next-auth/react";
 import Image from "next/image";
-import { LogOut, Settings, User } from "lucide-react";
+import Link from "next/link";
+import { Settings, User } from "lucide-react";
 import type { Role } from "@prisma/client";
 
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { Dropdown } from "./Dropdown";
 
 export type ProfileDropdownUser = {
-  name: string | null | undefined;
-  email: string | null | undefined;
-  image: string | null | undefined;
+  name?: string | null | undefined;
+  email?: string | null | undefined;
+  image?: string | null | undefined;
   role: Role;
 };
 
@@ -73,41 +74,34 @@ export function ProfileDropdown({ user }: ProfileDropdownProps) {
         </p>
       </div>
       <div className="p-1">
-        <button
-          type="button"
+        <Link
+          href="/dashboard/profile"
           className={cn(
-            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground",
+            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm",
             "hover:bg-accent hover:text-accent-foreground"
           )}
         >
           <User className="h-4 w-4" aria-hidden />
           Profile
-          <span className="ml-auto text-[10px] uppercase text-muted-foreground/70">Soon</span>
-        </button>
-        <button
-          type="button"
+        </Link>
+        <Link
+          href="/dashboard/settings"
           className={cn(
-            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground",
+            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm",
             "hover:bg-accent hover:text-accent-foreground"
           )}
         >
           <Settings className="h-4 w-4" aria-hidden />
           Settings
-          <span className="ml-auto text-[10px] uppercase text-muted-foreground/70">Soon</span>
-        </button>
+        </Link>
       </div>
       <div className="border-t border-border/60 p-1">
-        <button
-          type="button"
+        <LogoutButton
           className={cn(
             "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive",
             "hover:bg-destructive/10"
           )}
-          onClick={() => void signOut({ callbackUrl: "/" })}
-        >
-          <LogOut className="h-4 w-4" aria-hidden />
-          Log out
-        </button>
+        />
       </div>
     </Dropdown>
   );

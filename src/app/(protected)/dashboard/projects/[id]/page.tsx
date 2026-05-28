@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Role } from "@prisma/client";
 
+import { ProjectApplicantMessaging } from "@/components/messaging/ProjectApplicantMessaging";
 import { ProjectDetailActions } from "@/components/projects/ProjectDetailActions";
 import { getSession } from "@/lib/auth/session";
 import { budgetLabel, statusLabel } from "@/lib/projects/formatting";
@@ -49,6 +51,10 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           </Link>
         </div>
       </div>
+
+      {session.user.role === Role.CLIENT ? (
+        <ProjectApplicantMessaging projectId={project.id} />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-4 rounded-2xl border border-border/60 bg-card p-6 shadow-subtle lg:col-span-2">

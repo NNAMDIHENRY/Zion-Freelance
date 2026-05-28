@@ -12,6 +12,7 @@ import { createProject, removeProjectAttachment, updateProject } from "@/lib/pro
 import { statusLabel } from "@/lib/projects/formatting";
 import { cn } from "@/lib/utils";
 
+import { FileUploadField } from "./FileUploadField";
 import { SkillMultiSelect } from "./SkillMultiSelect";
 import type { ProjectFormInitial, TaxonomyOption } from "./project-types";
 import type { ProjectWritePayload } from "@/lib/validators/project";
@@ -116,13 +117,6 @@ export function ProjectForm({ mode, categories, skills, initial }: ProjectFormPr
     } finally {
       setPending(false);
     }
-  }
-
-  function onFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files;
-    if (!f?.length) return;
-    setPickedFiles((prev) => [...prev, ...Array.from(f)]);
-    e.target.value = "";
   }
 
   return (
@@ -268,31 +262,11 @@ export function ProjectForm({ mode, categories, skills, initial }: ProjectFormPr
 
         <div className="space-y-4 rounded-2xl border border-border/60 bg-card p-6 shadow-subtle lg:col-span-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Attachments</h2>
-          <div>
-            <Label htmlFor="files" className="text-sm font-medium">
-              Add files
-            </Label>
-            <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
-              Stores metadata only (name, size, MIME type); binary storage is wired later.
-            </p>
-            <input id="files" type="file" multiple className="mt-3 block text-sm" onChange={onFilesChange} />
-          </div>
-          {pickedFiles.length ? (
-            <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
-              {pickedFiles.map((f, i) => (
-                <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-                  <span className="min-w-0 truncate">{f.name}</span>
-                  <button
-                    type="button"
-                    className="shrink-0 text-xs text-destructive"
-                    onClick={() => setPickedFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          <FileUploadField
+            files={pickedFiles}
+            onChange={setPickedFiles}
+            hint="Files upload when you save the project."
+          />
           {localAttachments.length ? (
             <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
               {localAttachments.map((a) => (

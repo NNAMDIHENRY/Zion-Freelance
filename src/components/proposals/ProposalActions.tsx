@@ -142,7 +142,7 @@ export function ProposalActions({
                   const r = await acceptProposalAction(proposalId);
                   if (!r.ok) throw new Error(r.error);
                   toast.success("Proposal accepted");
-                  router.refresh();
+                  router.push(`/dashboard/contracts/${r.contractId}`);
                 }
               })
             }

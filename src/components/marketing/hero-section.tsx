@@ -8,10 +8,12 @@ type HeroSectionProps = {
   badge?: string;
   title: string;
   description: string;
-  primaryCta: { href: string; label: string };
+  primaryCta?: { href: string; label: string };
   secondaryCta?: { href: string; label: string };
   className?: string;
   children?: ReactNode;
+  search?: ReactNode;
+  ctas?: ReactNode;
 };
 
 export function HeroSection({
@@ -21,7 +23,9 @@ export function HeroSection({
   primaryCta,
   secondaryCta,
   className,
-  children
+  children,
+  search,
+  ctas
 }: HeroSectionProps) {
   return (
     <section
@@ -56,16 +60,21 @@ export function HeroSection({
             <p className="mt-5 text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
               {description}
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button asChild size="lg" className="rounded-xl px-6 shadow-subtle">
-                <Link href={primaryCta.href}>{primaryCta.label}</Link>
-              </Button>
-              {secondaryCta ? (
-                <Button asChild size="lg" variant="outline" className="rounded-xl px-6">
-                  <Link href={secondaryCta.href}>{secondaryCta.label}</Link>
+            {search ? <div className="mt-8">{search}</div> : null}
+            {ctas ? (
+              ctas
+            ) : primaryCta ? (
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button asChild size="lg" className="rounded-xl px-6 shadow-subtle">
+                  <Link href={primaryCta.href}>{primaryCta.label}</Link>
                 </Button>
-              ) : null}
-            </div>
+                {secondaryCta ? (
+                  <Button asChild size="lg" variant="outline" className="rounded-xl px-6">
+                    <Link href={secondaryCta.href}>{secondaryCta.label}</Link>
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="relative min-h-[280px] lg:min-h-[340px]">{children}</div>

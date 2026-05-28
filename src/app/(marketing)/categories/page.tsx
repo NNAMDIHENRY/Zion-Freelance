@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
 import { CategorySearchGrid } from "@/components/marketing/category-search";
+import { syncMarketplaceTaxonomy } from "@/lib/marketplace/taxonomy";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Categories",
@@ -8,7 +11,9 @@ export const metadata: Metadata = {
     "Explore freelance categories—design, development, writing, marketing, video editing, business support—and find the right specialists faster."
 };
 
-export default function CategoriesPage() {
+export default async function CategoriesPage() {
+  await syncMarketplaceTaxonomy();
+
   return (
     <div className="border-b border-border/40 bg-gradient-to-b from-background to-muted/15">
       <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:py-24">

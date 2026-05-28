@@ -71,6 +71,7 @@ export function ProjectDetailActions({
       <Button type="button" variant="outline" size="sm" asChild>
         <Link href={`/dashboard/projects/${projectId}/edit`}>Edit</Link>
       </Button>
+      {current !== ProjectStatus.COMPLETED ? (
       <Button
         type="button"
         variant="outline"
@@ -93,6 +94,7 @@ export function ProjectDetailActions({
       >
         Delete
       </Button>
+      ) : null}
     </div>
   );
 }

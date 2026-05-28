@@ -25,9 +25,18 @@ export type ProposalFormProps = {
     deliveryDays: number;
   };
   lockedReason?: string;
+  successRedirect?: string;
 };
 
-export function ProposalForm({ projectId, currency, mode, proposalId, initial, lockedReason }: ProposalFormProps) {
+export function ProposalForm({
+  projectId,
+  currency,
+  mode,
+  proposalId,
+  initial,
+  lockedReason,
+  successRedirect
+}: ProposalFormProps) {
   const router = useRouter();
   const [price, setPrice] = React.useState(initial?.proposedPrice?.toString() ?? "");
   const [letter, setLetter] = React.useState(initial?.coverLetter ?? "");
@@ -81,7 +90,9 @@ export function ProposalForm({ projectId, currency, mode, proposalId, initial, l
         return;
       }
       toast.success(mode === "edit" ? "Proposal updated" : "Proposal submitted");
-      router.push(`/dashboard/proposals/${res.id}`);
+      const destination =
+        successRedirect ?? `/dashboard/proposals/${res.id}`;
+      router.push(destination);
       router.refresh();
     } finally {
       setSubmitting(false);

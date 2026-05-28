@@ -1,19 +1,78 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
+import Link from "next/link";
+import * as React from "react";
 
+import type { NotificationType } from "@prisma/client";
+
+import {
+  NotificationItem,
+  type NotificationItemData
+} from "@/components/notifications/NotificationItem";
 import { Button } from "@/components/ui/button";
+import { useNotificationStream } from "@/hooks/use-notification-stream";
+import { resolveNotificationHref } from "@/lib/notifications/links";
 import { cn } from "@/lib/utils";
 
 import { Dropdown } from "./Dropdown";
 
-const MOCK_NOTIFICATIONS = [
-  { id: "1", title: "Proposal viewed", body: "A client opened your proposal for Brand refresh.", time: "2h" },
-  { id: "2", title: "Milestone reminder", body: "Deliverable due tomorrow for Website rebuild.", time: "5h" },
-  { id: "3", title: "New message", body: "You have a new thread in Project Atlas.", time: "1d" }
-];
+type Item = NotificationItemData;
 
 export function NotificationDropdown() {
+  const router = useRouter();
+  const [items, setItems] = React.useState<Item[]>([]);
+  const [unread, setUnread] = React.useState(0);
+
+  const load = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/notifications?take=12", {
+        credentials: "include"
+      });
+      if (!response.ok) return;
+      const body = (await response.json()) as { items?: Item[]; unread?: number };
+      setItems(Array.isArray(body.items) ? body.items : []);
+      setUnread(typeof body.unread === "number" ? body.unread : 0);
+    } catch {
+      undefined;
+    }
+  }, []);
+
+  useNotificationStream({
+    onNotification: () => void load(),
+    onUnread: setUnread
+  });
+
+  React.useEffect(() => {
+    void load();
+    function onVis() {
+      if (document.visibilityState === "visible") void load();
+    }
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [load]);
+
+  async function markAndOpen(entry: Item) {
+    await fetch(`/api/notifications/${entry.id}/read`, {
+      method: "POST",
+      credentials: "include"
+    });
+    await load();
+    const href = resolveNotificationHref(entry.type as NotificationType, entry.data);
+    if (href) router.push(href);
+  }
+
+  async function markAllRead() {
+    await fetch("/api/notifications/read-all", {
+      method: "POST",
+      credentials: "include"
+    });
+    await load();
+  }
+
+  const labelUnread = unread > 99 ? "99+" : String(unread);
+
   return (
     <Dropdown
       align="end"
@@ -26,32 +85,55 @@ export function NotificationDropdown() {
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" aria-hidden />
+          {unread > 0 ? (
+            <span className="absolute right-1.5 top-1.5 rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground">
+              {labelUnread}
+            </span>
+          ) : null}
         </Button>
       }
-      contentClassName="min-w-[20rem] p-0 overflow-hidden"
+      contentClassName="max-h-[24rem] min-w-[20rem] overflow-hidden p-0"
     >
       <div className="border-b border-border/60 px-4 py-3">
-        <p className="text-sm font-semibold">Notifications</p>
-        <p className="text-xs text-muted-foreground">Preview data — wiring comes later.</p>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">Notifications</p>
+            <p className="text-xs text-muted-foreground">
+              {unread ? `${labelUnread} unread` : "You're clear"}
+            </p>
+          </div>
+          {unread > 0 ? (
+            <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void markAllRead()}>
+              Mark all read
+            </Button>
+          ) : null}
+        </div>
       </div>
-      <ul className="max-h-72 overflow-y-auto py-1">
-        {MOCK_NOTIFICATIONS.map((n) => (
-          <li key={n.id}>
-            <button
-              type="button"
-              className={cn(
-                "flex w-full flex-col gap-0.5 px-4 py-3 text-left text-sm transition-colors",
-                "hover:bg-accent hover:text-accent-foreground"
-              )}
+      <ul className="max-h-72 overflow-y-auto divide-y divide-border/50">
+        {items.length === 0 ? (
+          <li className="px-4 py-6 text-sm text-muted-foreground">Quiet on the wires.</li>
+        ) : (
+          items.map((notice) => (
+            <li
+              key={notice.id}
+              className={cn("cursor-pointer", !notice.read && "bg-primary/5")}
+              onClick={() => void markAndOpen(notice)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") void markAndOpen(notice);
+              }}
+              role="button"
+              tabIndex={0}
             >
-              <span className="font-medium leading-tight">{n.title}</span>
-              <span className="text-xs text-muted-foreground">{n.body}</span>
-              <span className="text-[11px] text-muted-foreground/80">{n.time} ago</span>
-            </button>
-          </li>
-        ))}
+              <NotificationItem item={notice} compact />
+            </li>
+          ))
+        )}
       </ul>
+      <div className="border-t border-border/60 p-2">
+        <Button type="button" variant="ghost" size="sm" className="w-full" asChild>
+          <Link href="/dashboard/notifications">View notification center</Link>
+        </Button>
+      </div>
     </Dropdown>
   );
 }

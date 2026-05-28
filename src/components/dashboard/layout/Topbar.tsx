@@ -1,9 +1,9 @@
 "use client";
 
-import { Menu, Search } from "lucide-react";
+import { Menu } from "lucide-react";
 
+import { DashboardSearch } from "@/components/search/DashboardSearch";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 import { NotificationDropdown } from "../ui/NotificationDropdown";
@@ -29,22 +29,8 @@ export function Topbar({ user, onMenuClick }: TopbarProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      <div className="relative hidden min-w-0 flex-1 md:block md:max-w-md">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
-        <Input
-          type="search"
-          placeholder="Search projects, people, invoices…"
-          className={cn(
-            "h-10 w-full rounded-lg border-border/60 bg-muted/40 pl-9",
-            "placeholder:text-muted-foreground/70"
-          )}
-          readOnly
-          aria-readonly
-          title="Search is coming in a later module"
-        />
+      <div className="hidden min-w-0 flex-1 md:block">
+        <DashboardSearch />
       </div>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">

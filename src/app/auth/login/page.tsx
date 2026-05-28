@@ -10,6 +10,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { FormAlert } from "@/components/forms/form-alert";
 import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/auth/password-input";
 import { Input } from "@/components/ui/input";
 import { loginSchema } from "@/lib/validators/auth";
 
@@ -23,6 +24,9 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const registered = searchParams.get("registered") === "1";
+  const passwordReset = searchParams.get("reset") === "success";
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>(
     {}
   );
@@ -34,7 +38,7 @@ export default function LoginPage() {
     setFormError(null);
     setFieldErrors({});
 
-    const parsed = loginSchema.safeParse({ email, password });
+    const parsed = loginSchema.safeParse({ email, password, rememberMe });
     if (!parsed.success) {
       setFieldErrors(parsed.error.flatten().fieldErrors as Record<string, string[]>);
       return;
@@ -46,6 +50,7 @@ export default function LoginPage() {
         redirect: false,
         email: parsed.data.email,
         password: parsed.data.password,
+        rememberMe: String(parsed.data.rememberMe),
         callbackUrl
       });
 
@@ -55,7 +60,7 @@ export default function LoginPage() {
             "Authentication is misconfigured. Set NEXTAUTH_SECRET and NEXTAUTH_URL."
           );
         } else {
-          setFormError("Invalid email or password.");
+          setFormError("Invalid email or password, or your email is not verified yet.");
         }
         return;
       }
@@ -81,6 +86,16 @@ export default function LoginPage() {
       }
     >
       <form className="flex flex-col gap-5" onSubmit={onSubmit} noValidate>
+        {registered ? (
+          <FormAlert variant="success">
+            Account created. Check your email to verify your address before signing in.
+          </FormAlert>
+        ) : null}
+        {passwordReset ? (
+          <FormAlert variant="success">
+            Password updated. Sign in with your new password.
+          </FormAlert>
+        ) : null}
         {formError ? <FormAlert variant="error">{formError}</FormAlert> : null}
 
         <FormField
@@ -115,10 +130,9 @@ export default function LoginPage() {
             </span>
           }
         >
-          <Input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -126,6 +140,16 @@ export default function LoginPage() {
             required
           />
         </FormField>
+
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-input"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+          />
+          Remember me for 30 days
+        </label>
 
         <Button type="submit" className="h-11 w-full" disabled={loading}>
           {loading ? (

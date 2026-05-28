@@ -6,6 +6,7 @@ import { ProposalStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { DataTable, type DataTableColumn } from "@/components/dashboard/ui/DataTable";
+import { OpenConversationButton } from "@/components/messaging/OpenConversationButton";
 import { ProposalStatusBadge } from "@/components/proposals/ProposalStatusBadge";
 import type { FreelancerProposalRowDTO } from "@/components/proposals/types";
 import { moneyLabel } from "@/lib/projects/formatting";
@@ -27,7 +28,7 @@ export function FreelancerProposalsTable({
       header: "Project",
       cell: (row) => (
         <Link
-          href={`/dashboard/projects/${row.projectId}/proposal`}
+          href={`/projects/${row.projectId}`}
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
           {row.projectTitle}
@@ -52,6 +53,23 @@ export function FreelancerProposalsTable({
       id: "status",
       header: "Status",
       cell: (row) => <ProposalStatusBadge status={row.status} />
+    },
+    {
+      id: "message",
+      header: "",
+      className: "w-[1%] whitespace-nowrap",
+      cell: (row) =>
+        row.status !== ProposalStatus.WITHDRAWN ? (
+          <OpenConversationButton
+            mode="proposal"
+            proposalId={row.id}
+            label="Message"
+            variant="outline"
+            size="sm"
+          />
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )
     },
     {
       id: "submitted",

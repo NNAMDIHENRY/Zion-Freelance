@@ -174,6 +174,15 @@ export async function deleteProject(projectId: string): Promise<ActionOk | Actio
   if (typeof clientId !== "string") return clientId;
 
   const prisma = await getPrisma();
+  const existing = await prisma.project.findFirst({
+    where: { id: projectId, clientId },
+    select: { status: true }
+  });
+  if (!existing) return { ok: false, error: "Not found" };
+  if (existing.status === ProjectStatus.COMPLETED) {
+    return { ok: false, error: "Completed projects cannot be deleted" };
+  }
+
   const res = await prisma.project.deleteMany({
     where: { id: projectId, clientId }
   });

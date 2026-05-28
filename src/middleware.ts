@@ -4,6 +4,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const AUTH_PREFIX = "/auth";
+const AUTH_PUBLIC_WHEN_LOGGED_IN = ["/auth/reset-password", "/auth/verify-email"];
+
+function loginAllowedWhenLoggedIn(pathname: string, search: string) {
+  if (pathname !== "/auth/login") return false;
+  const params = new URLSearchParams(search);
+  return params.get("reset") === "success";
+}
 
 const ROLE_ROUTES: Array<{ prefix: string; role: Role }> = [
   { prefix: "/admin", role: Role.ADMIN },
@@ -20,7 +27,11 @@ export async function middleware(request: NextRequest) {
   const isAuthArea = pathname === AUTH_PREFIX || pathname.startsWith(`${AUTH_PREFIX}/`);
 
   if (isAuthArea) {
-    if (token) {
+    const allowWhenLoggedIn =
+      AUTH_PUBLIC_WHEN_LOGGED_IN.some(
+        (p) => pathname === p || pathname.startsWith(`${p}/`)
+      ) || loginAllowedWhenLoggedIn(pathname, search);
+    if (token && !allowWhenLoggedIn) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.next();
@@ -40,6 +51,12 @@ export async function middleware(request: NextRequest) {
     const login = new URL("/auth/login", request.url);
     login.searchParams.set("callbackUrl", `${pathname}${search}`);
     return NextResponse.redirect(login);
+  }
+
+  if (!token.emailVerified) {
+    const verify = new URL("/auth/verify-email", request.url);
+    verify.searchParams.set("pending", "1");
+    return NextResponse.redirect(verify);
   }
 
   const role = token.role as Role | undefined;

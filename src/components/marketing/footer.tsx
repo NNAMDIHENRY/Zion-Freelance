@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+import { FooterAccountLinks } from "./footer-account-links";
 import { marketingNav } from "./nav-links";
 
 export function Footer({ className }: { className?: string }) {
@@ -48,21 +49,7 @@ export function Footer({ className }: { className?: string }) {
           <div>
             <div className="text-sm font-semibold">Account</div>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <li>
-                <Link className="hover:text-foreground" href="/auth/login">
-                  Sign in
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:text-foreground" href="/auth/register">
-                  Create account
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:text-foreground" href="/dashboard">
-                  Dashboard
-                </Link>
-              </li>
+              <FooterAccountLinks />
             </ul>
           </div>
 
@@ -86,8 +73,7 @@ export function Footer({ className }: { className?: string }) {
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-border/60 pt-8 text-xs text-muted-foreground sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} Zion TeCHer. All rights reserved.</p>
           <p className="text-[11px] sm:max-w-md sm:text-right">
-            Built for speed, trust, and global collaboration. Escrow, proposals, and
-            role-based dashboards ship in upcoming modules.
+            Built for speed, trust, and global collaboration.
           </p>
         </div>
       </div>

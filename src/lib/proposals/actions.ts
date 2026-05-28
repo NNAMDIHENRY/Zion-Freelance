@@ -139,6 +139,8 @@ export async function acceptProposalAction(
   revalidatePath(`/dashboard/projects/${projectId}/proposals`);
   revalidatePath(`/dashboard/projects/${projectId}`);
   revalidatePath(`/dashboard/projects/${projectId}/proposal`);
+  revalidatePath("/dashboard/contracts");
+  revalidatePath(`/dashboard/contracts/${res.data.contractId}`);
   return { ok: true, contractId: res.data.contractId };
 }
 

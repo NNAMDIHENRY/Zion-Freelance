@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
 
 import { ProposalForm } from "@/components/proposals/ProposalForm";
+import { OpenConversationButton } from "@/components/messaging/OpenConversationButton";
 import { getSession } from "@/lib/auth/session";
 import { budgetLabel } from "@/lib/projects/formatting";
 import {
@@ -88,6 +89,7 @@ export default async function FreelancerProjectProposalPage({
         projectId={id}
         currency={project.currency}
         mode="create"
+        successRedirect="/freelancer/jobs"
         initial={
           existing &&
           (existing.status === ProposalStatus.REJECTED ||
@@ -124,6 +126,17 @@ export default async function FreelancerProjectProposalPage({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Brief</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{project.description}</p>
       </div>
+
+      {existing?.id && existing.status !== ProposalStatus.WITHDRAWN ? (
+        <div className="flex justify-end">
+          <OpenConversationButton
+            mode="proposal"
+            proposalId={existing.id}
+            label="Message client"
+            variant="outline"
+          />
+        </div>
+      ) : null}
 
       <div>
         <h2 className="mb-4 text-lg font-semibold tracking-tight">Your proposal</h2>

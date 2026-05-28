@@ -6,9 +6,1015 @@ datasource db {
   provider = "postgresql"
 }
 
-// ---------------------------------------------------------------------------
-// Enums
-// ---------------------------------------------------------------------------
+model User {
+  id                       String                    @id @default(cuid())
+  email                    String                    @unique
+  name                     String
+  password                 String
+  role                     Role                      @default(CLIENT)
+  emailVerified            DateTime?
+  imageFileId              String?                   @unique
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  unreadNotificationCount  Int                       @default(0)
+  userRegistrationContacts UserRegistrationContact[]
+  accountStatus            AccountStatus             @default(ACTIVE)
+  moderationFlag           Boolean                   @default(false)
+  verifiedAt               DateTime?
+  suspendedAt              DateTime?
+  suspendReason            String?
+  restrictedUntil          DateTime?
+  abuseReportsAssigned     AbuseReport[]             @relation("AbuseAssignee")
+  abuseReportsFiled        AbuseReport[]             @relation("AbuseReporter")
+  adminAuditLogs           AdminAuditLog[]
+  clientProfile            ClientProfile?
+  conversationParticipants ConversationParticipant[]
+  disputesOpened           Dispute[]                 @relation("DisputeOpenedBy")
+  disputesResolved         Dispute[]                 @relation("DisputeResolvedBy")
+  fileUploads              FileUpload[]              @relation("UploadedBy")
+  freelancerProfile        FreelancerProfile?
+  messagesSent             Message[]                 @relation("MessageSender")
+  receiveEmailUpdates      Boolean                   @default(true)
+  allowMessagesFromEveryone Boolean                  @default(true)
+  termsAcceptedAt          DateTime?
+  tutorialClientCompletedAt DateTime?
+  tutorialFreelancerCompletedAt DateTime?
+  emailVerificationTokens  EmailVerificationToken[]
+  popupDismissals          UserPopupDismissal[]
+  bannerDismissals         UserBannerDismissal[]
+  profileViewsReceived     ProfileView[]             @relation("ProfileViewed")
+  profileViewsMade         ProfileView[]             @relation("ProfileViewer")
+  kycSubmission            KycSubmission?
+  notifications            Notification[]
+  notificationPreferences  NotificationPreference[]
+  passwordResetTokens      PasswordResetToken[]
+  reviewsWritten           Review[]                  @relation("ReviewAuthor")
+  reviewsAbout             Review[]                  @relation("ReviewSubject")
+  imageFile                FileUpload?               @relation("UserAvatar", fields: [imageFileId], references: [id])
+  wallet                   Wallet?
+  paymentAttempts          PaymentAttempt[]
+  jobsPosted               Job[]                    @relation("JobPoster")
+  jobApplications          JobApplication[]
+  savedJobs                SavedJob[]
+  jobViews                 JobView[]
+  jobReportsFiled          JobReport[]              @relation("JobReporter")
+
+  @@index([role, createdAt])
+  @@index([accountStatus, moderationFlag])
+}
+
+/// One-time password reset tokens (store hash only; raw token sent by email).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([tokenHash])
+}
+
+model FreelancerProfile {
+  id            String             @id @default(cuid())
+  userId        String             @unique
+  headline      String?
+  bio           String?
+  planTier      FreelancerPlanTier @default(FREE)
+  planExpiresAt DateTime? // 👈 ADD THIS BACK
+  hourlyRate    Decimal?           @db.Decimal(12, 2)
+  isPublic      Boolean            @default(true)
+  ratingAverage     Decimal            @default(0) @db.Decimal(4, 2)
+  ratingCount       Int                @default(0)
+  profileViewCount  Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  availability  String             @default("AVAILABLE")
+  categorySlugs String[]           @default([])
+
+  certifications  FreelancerCertification[]
+  portfolioItems  PortfolioItem[]
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills          FreelancerSkill[]
+  proposals       Proposal[]
+  reviewsReceived Review[]          @relation("ReviewFreelancerProfile")
+
+  @@index([isPublic, ratingAverage])
+}
+
+model ClientProfile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  companyName      String?
+  websiteUrl       String?
+  bio              String?
+  isPublic         Boolean   @default(true)
+  profileViewCount Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects         Project[]
+  reviewsReceived  Review[]  @relation("ReviewClientProfile")
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  parentId    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  projects    Project[]
+
+  @@index([parentId])
+}
+
+model Skill {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  slug        String            @unique
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  freelancers FreelancerSkill[]
+  projects    ProjectSkill[]
+  jobs        JobSkill[]
+}
+
+model FreelancerSkill {
+  id                  String            @id @default(cuid())
+  freelancerProfileId String
+  skillId             String
+  yearsExperience     Int?
+  proficiency         Int?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  freelancerProfile   FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+  skill               Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([freelancerProfileId, skillId])
+  @@index([skillId])
+}
+
+model ProjectSkill {
+  id        String   @id @default(cuid())
+  projectId String
+  skillId   String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, skillId])
+  @@index([skillId])
+}
+
+model Project {
+  id               String                  @id @default(cuid())
+  title            String
+  description      String
+  budgetMin        Decimal?                @db.Decimal(19, 4)
+  budgetMax        Decimal?                @db.Decimal(19, 4)
+  currency         String                  @default("USD")
+  status           ProjectStatus           @default(DRAFT)
+  clientId         String
+  categoryId       String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  deadline         DateTime?
+  moderationStatus ProjectModerationStatus @default(ACTIVE)
+  moderationNote   String?
+  moderatedAt      DateTime?
+  contract         Contract?
+  conversations    Conversation[]
+  attachments      FileUpload[]            @relation("ProjectFiles")
+  category         Category?               @relation(fields: [categoryId], references: [id])
+  client           ClientProfile           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  skills           ProjectSkill[]
+  proposals        Proposal[]
+  reviews          Review[]
+
+  @@index([clientId, status])
+  @@index([moderationStatus, createdAt])
+  @@index([categoryId, status])
+  @@index([status, createdAt])
+}
+
+model Proposal {
+  id            String            @id @default(cuid())
+  coverLetter   String
+  proposedPrice Decimal           @db.Decimal(19, 4)
+  currency      String            @default("USD")
+  status        ProposalStatus    @default(PENDING)
+  projectId     String
+  freelancerId  String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deliveryDays  Int?
+  withdrawnAt   DateTime?
+  contract      Contract?
+  conversation  Conversation?
+  attachments   FileUpload[]      @relation("ProposalFiles")
+  freelancer    FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, freelancerId])
+  @@index([projectId, status])
+  @@index([freelancerId, status])
+}
+
+model Contract {
+  id             String         @id @default(cuid())
+  status         ContractStatus @default(PENDING)
+  agreedAmount   Decimal        @db.Decimal(19, 4)
+  currency       String         @default("USD")
+  startsAt       DateTime?
+  endsAt         DateTime?
+  projectId      String         @unique
+  proposalId     String         @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  acceptedAt     DateTime?
+  completedAt    DateTime?
+  completionNote String?
+  deliveryDays   Int?
+  deliveryTerms  String?
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  milestones ContractMilestone[]
+  dispute    Dispute?
+  escrow     Escrow?
+
+  documents FileUpload[] @relation("ContractFiles")
+
+  payments        Payment[]
+  paymentAttempts PaymentAttempt[]
+
+  reviews Review[]
+
+  @@index([status, createdAt])
+}
+
+model PortfolioItem {
+  id                  String   @id @default(cuid())
+  freelancerProfileId String
+  title               String
+  description         String?
+  projectUrl          String?
+  imageFileId         String
+  sortOrder           Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  freelancerProfile FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([freelancerProfileId])
+  @@index([sortOrder])
+}
+
+model ContractMilestone {
+  id          String          @id @default(cuid())
+  title       String
+  description String?
+  amount      Decimal         @db.Decimal(19, 4)
+  currency    String          @default("USD")
+  dueDate     DateTime?
+  status      MilestoneStatus @default(PENDING)
+  sortOrder   Int             @default(0)
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  releasedAt  DateTime?
+  contractId  String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  contract    Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, sortOrder])
+  @@index([contractId, status])
+}
+
+model Wallet {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  currency       String   @default("USD")
+  balance        Decimal  @default(0) @db.Decimal(19, 4)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lockedBalance  Float    @default(0)
+  pendingBalance Float    @default(0)
+
+  paymentsAsPayee Payment[]        @relation("PayeeWallet")
+  paymentsAsPayer Payment[]        @relation("PayerWallet")
+  paymentAttempts PaymentAttempt[]
+
+  transactions       Transaction[]
+  withdrawalRequests WithdrawalRequest[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Wallet ledger line (auditable financial record).
+model Transaction {
+  id                  String             @id @default(cuid())
+  type                TransactionType
+  amount              Decimal            @db.Decimal(19, 4)
+  currency            String             @default("USD")
+  description         String?
+  idempotencyKey      String?            @unique
+  balanceAfter        Decimal?           @db.Decimal(19, 4)
+  walletId            String
+  paymentId           String?
+  withdrawalRequestId String?
+  escrowRecordId      String?            @unique
+  createdAt           DateTime           @default(now())
+  escrowRecord        EscrowRecord?      @relation(fields: [escrowRecordId], references: [id])
+  payment             Payment?           @relation(fields: [paymentId], references: [id])
+  wallet              Wallet             @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  withdrawalRequest   WithdrawalRequest? @relation(fields: [withdrawalRequestId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@index([type, createdAt])
+}
+
+/// Business-level payment (gateway / invoice), linked to ledger `Transaction` rows.
+model Payment {
+  id String @id @default(cuid())
+
+  amount   Decimal @db.Decimal(19, 4)
+  currency String  @default("USD")
+
+  status PaymentStatus @default(PENDING)
+
+  provider    PaymentProvider @default(INTERNAL)
+  providerRef String?
+
+  txRef String? @unique
+
+  failureReason String?
+
+  metadata Json?
+
+  contractId    String?
+  payerWalletId String?
+  payeeWalletId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contract Contract? @relation(fields: [contractId], references: [id])
+
+  payeeWallet Wallet? @relation("PayeeWallet", fields: [payeeWalletId], references: [id])
+
+  payerWallet Wallet? @relation("PayerWallet", fields: [payerWalletId], references: [id])
+
+  paymentAttempt PaymentAttempt?
+
+  transactions Transaction[]
+
+  @@index([status, createdAt])
+  @@index([contractId])
+  @@index([provider, providerRef])
+}
+
+model PaymentAttempt {
+  id String @id @default(cuid())
+
+  purpose PaymentAttemptPurpose
+
+  status PaymentAttemptStatus @default(PENDING)
+
+  amount Decimal @db.Decimal(19, 4)
+
+  currency String
+
+  txRef String @unique
+
+  flwRef String?
+
+  redirectUrl String?
+
+  checkoutUrl String?
+
+  failureReason String?
+
+  metadata Json?
+
+  expiresAt DateTime
+
+  completedAt DateTime?
+
+  userId String
+
+  walletId String?
+
+  contractId String?
+
+  paymentId String? @unique
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  wallet Wallet? @relation(fields: [walletId], references: [id])
+
+  contract Contract? @relation(fields: [contractId], references: [id])
+
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([contractId])
+  @@index([status])
+}
+
+enum PaymentAttemptPurpose {
+  WALLET_FUND
+  ESCROW_FUND
+  SUBSCRIPTION_UPGRADE
+}
+
+enum PaymentAttemptStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model WithdrawalRequest {
+  id                String           @id @default(cuid())
+  amount            Decimal          @db.Decimal(19, 4)
+  currency          String           @default("USD")
+  status            WithdrawalStatus @default(PENDING)
+  payoutMethod      String
+  payoutDetails     Json?
+  walletId          String
+  reviewedAt        DateTime?
+  reviewNote        String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  reviewedByAdminId String?
+  flaggedForReview  Boolean          @default(false)
+  attachments       FileUpload[]     @relation("WithdrawalFiles")
+  transactions      Transaction[]
+  wallet            Wallet           @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, status])
+  @@index([status, createdAt])
+}
+
+model Escrow {
+  id              String         @id @default(cuid())
+  contractId      String         @unique
+  status          EscrowStatus   @default(AWAITING_FUNDING)
+  fundedAmount    Decimal        @default(0) @db.Decimal(19, 4)
+  releasedAmount  Decimal        @default(0) @db.Decimal(19, 4)
+  currency        String         @default("USD")
+  fundedAt        DateTime?
+  fullyReleasedAt DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  contract        Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  records         EscrowRecord[]
+
+  @@index([status])
+}
+
+/// Append-only style ledger lines for escrow lifecycle (pairs with `Transaction` when money moves).
+model EscrowRecord {
+  id          String           @id @default(cuid())
+  type        EscrowRecordType
+  amount      Decimal          @db.Decimal(19, 4)
+  currency    String           @default("USD")
+  note        String?
+  escrowId    String
+  createdAt   DateTime         @default(now())
+  escrow      Escrow           @relation(fields: [escrowId], references: [id], onDelete: Cascade)
+  transaction Transaction?
+
+  @@index([escrowId, createdAt])
+  @@index([type, createdAt])
+}
+
+model Review {
+  id                  String             @id @default(cuid())
+  rating              Int
+  comment             String?
+  subject             ReviewSubject
+  contractId          String
+  authorUserId        String
+  subjectUserId       String
+  freelancerProfileId String?
+  clientProfileId     String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  status              ReviewStatus       @default(PENDING)
+  projectId           String
+  authorUser          User               @relation("ReviewAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+  clientProfile       ClientProfile?     @relation("ReviewClientProfile", fields: [clientProfileId], references: [id])
+  contract            Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  freelancerProfile   FreelancerProfile? @relation("ReviewFreelancerProfile", fields: [freelancerProfileId], references: [id])
+  project             Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  subjectUser         User               @relation("ReviewSubject", fields: [subjectUserId], references: [id], onDelete: Cascade)
+
+  @@unique([authorUserId, projectId, subject])
+  @@index([subjectUserId, status, createdAt])
+  @@index([authorUserId])
+  @@index([projectId])
+  @@index([contractId])
+  @@index([status, createdAt])
+  @@index([freelancerProfileId])
+  @@index([clientProfileId])
+}
+
+model Notification {
+  id         String               @id @default(cuid())
+  type       NotificationType
+  title      String
+  body       String
+  read       Boolean              @default(false)
+  readAt     DateTime?
+  data       Json?
+  userId     String
+  createdAt  DateTime             @default(now())
+  category   NotificationCategory
+  priority   NotificationPriority @default(NORMAL)
+  archivedAt DateTime?
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+  @@index([userId, archivedAt, createdAt])
+  @@index([userId, category, createdAt])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id        String               @id @default(cuid())
+  userId    String
+  category  NotificationCategory
+  inApp     Boolean              @default(true)
+  email     Boolean              @default(true)
+  realtime  Boolean              @default(true)
+  updatedAt DateTime             @updatedAt
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([userId])
+}
+
+model Conversation {
+  id           String                    @id @default(cuid())
+  subject      String?
+  projectId    String?
+  directKey    String?                   @unique
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  proposalId   String?                   @unique
+  project      Project?                  @relation(fields: [projectId], references: [id])
+  proposal     Proposal?                 @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([projectId])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  muted          Boolean      @default(false)
+  joinedAt       DateTime     @default(now())
+  typingAt       DateTime?
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, conversationId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  content        String
+  senderId       String
+  conversationId String
+  replyToId      String?
+  readAt         DateTime?
+  isDeleted      Boolean      @default(false)
+  deletedAt      DateTime?
+  deletedById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  attachments    FileUpload[] @relation("MessageFiles")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  replyTo        Message?     @relation("MessageThread", fields: [replyToId], references: [id])
+  replies        Message[]    @relation("MessageThread")
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([conversationId, isDeleted])
+}
+
+model FileUpload {
+  id                  String             @id @default(cuid())
+  purpose             FilePurpose        @default(OTHER)
+  storageKey          String             @unique
+  originalName        String
+  mimeType            String
+  sizeBytes           Int
+  checksum            String?
+  uploadedByUserId    String
+  projectId           String?
+  proposalId          String?
+  contractId          String?
+  messageId           String?
+  withdrawalRequestId String?
+  jobId               String?
+  jobApplicationId    String?
+  createdAt           DateTime           @default(now())
+  contract            Contract?          @relation("ContractFiles", fields: [contractId], references: [id], onDelete: Cascade)
+  message             Message?           @relation("MessageFiles", fields: [messageId], references: [id], onDelete: Cascade)
+  project             Project?           @relation("ProjectFiles", fields: [projectId], references: [id], onDelete: Cascade)
+  proposal            Proposal?          @relation("ProposalFiles", fields: [proposalId], references: [id], onDelete: Cascade)
+  job                 Job?               @relation("JobFiles", fields: [jobId], references: [id], onDelete: Cascade)
+  jobApplication      JobApplication?    @relation("JobApplicationFiles", fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  jobApplicationResume JobApplication?   @relation("JobApplicationResume")
+  jobCompanyLogo      Job?               @relation("JobCompanyLogo")
+  uploadedBy          User               @relation("UploadedBy", fields: [uploadedByUserId], references: [id], onDelete: Cascade)
+  withdrawalRequest   WithdrawalRequest? @relation("WithdrawalFiles", fields: [withdrawalRequestId], references: [id], onDelete: Cascade)
+  userAvatar          User?              @relation("UserAvatar")
+
+  @@index([uploadedByUserId, createdAt])
+  @@index([projectId])
+  @@index([messageId])
+  @@index([jobId])
+  @@index([jobApplicationId])
+}
+
+model Dispute {
+  id             String        @id @default(cuid())
+  contractId     String        @unique
+  openedByUserId String
+  status         DisputeStatus @default(OPEN)
+  reason         String
+  resolution     String?
+  evidence       Json?
+  resolvedById   String?
+  resolvedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  contract       Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  openedBy       User          @relation("DisputeOpenedBy", fields: [openedByUserId], references: [id], onDelete: Cascade)
+  resolvedBy     User?         @relation("DisputeResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([openedByUserId])
+}
+
+model JobCategory {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  jobs        Job[]
+
+  @@index([sortOrder])
+}
+
+model Job {
+  id                    String           @id @default(cuid())
+  title                 String
+  slug                  String           @unique
+  shortDescription      String
+  fullDescription       String           @db.Text
+  responsibilities      String?          @db.Text
+  requirements          String?          @db.Text
+  qualifications        String?          @db.Text
+  benefits              String?          @db.Text
+  salaryMin             Decimal?         @db.Decimal(19, 4)
+  salaryMax             Decimal?         @db.Decimal(19, 4)
+  salaryType            SalaryType?
+  currency              String           @default("USD")
+  experienceLevel       ExperienceLevel
+  employmentType        EmploymentType
+  workMode              WorkMode
+  categoryId            String
+  country               String?
+  stateProvince         String?
+  city                  String?
+  fullAddress           String?
+  applicationUrl        String?
+  applicationEmail      String?
+  applicationDeadline   DateTime?
+  vacancies             Int              @default(1)
+  featured              Boolean          @default(false)
+  urgentHiring          Boolean          @default(false)
+  verifiedEmployerBadge Boolean          @default(false)
+  companyName           String
+  companyLogoFileId     String?          @unique
+  companyWebsite        String?
+  companySize           String?
+  industry              String?
+  yearsInOperation      Int?
+  status                JobStatus        @default(DRAFT)
+  moderationNote        String?
+  moderatedAt           DateTime?
+  publishedAt           DateTime?
+  expiresAt             DateTime?
+  posterId              String
+  applicationCount      Int              @default(0)
+  viewCount             Int              @default(0)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  category              JobCategory      @relation(fields: [categoryId], references: [id])
+  poster                User             @relation("JobPoster", fields: [posterId], references: [id], onDelete: Cascade)
+  companyLogoFile       FileUpload?      @relation("JobCompanyLogo", fields: [companyLogoFileId], references: [id])
+  skills                JobSkill[]
+  attachments           FileUpload[]     @relation("JobFiles")
+  applications          JobApplication[]
+  savedBy               SavedJob[]
+  views                 JobView[]
+  reports               JobReport[]
+
+  @@index([posterId, status])
+  @@index([status, publishedAt])
+  @@index([categoryId, status])
+  @@index([workMode, status])
+  @@index([featured, status, publishedAt])
+  @@index([experienceLevel, status])
+  @@index([employmentType, status])
+  @@index([createdAt])
+}
+
+model JobSkill {
+  id        String   @id @default(cuid())
+  jobId     String
+  skillId   String
+  createdAt DateTime @default(now())
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, skillId])
+  @@index([skillId])
+}
+
+model JobApplication {
+  id                 String                 @id @default(cuid())
+  jobId              String
+  applicantId        String
+  fullName           String
+  email              String
+  phone              String?
+  coverLetter        String                 @db.Text
+  portfolioUrl       String?
+  linkedInUrl        String?
+  githubUrl          String?
+  yearsExperience    Int?
+  availability       String?
+  expectedSalary     Decimal?               @db.Decimal(19, 4)
+  expectedSalaryType SalaryType?
+  currency           String                 @default("USD")
+  status             JobApplicationStatus   @default(PENDING)
+  resumeFileId       String?                @unique
+  withdrawnAt        DateTime?
+  reviewedAt         DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  job                Job                    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  applicant          User                   @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  resumeFile         FileUpload?            @relation("JobApplicationResume", fields: [resumeFileId], references: [id])
+  attachments        FileUpload[]           @relation("JobApplicationFiles")
+
+  @@unique([jobId, applicantId])
+  @@index([jobId, status])
+  @@index([applicantId, status])
+  @@index([createdAt])
+}
+
+model SavedJob {
+  id        String   @id @default(cuid())
+  userId    String
+  jobId     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@index([userId, createdAt])
+}
+
+model JobView {
+  id        String   @id @default(cuid())
+  jobId     String
+  userId    String?
+  viewerKey String
+  createdAt DateTime @default(now())
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([jobId, viewerKey])
+  @@index([jobId, createdAt])
+}
+
+model JobReport {
+  id          String            @id @default(cuid())
+  jobId       String
+  reporterId  String
+  reason      String
+  details     String?
+  status      JobReportStatus   @default(OPEN)
+  resolvedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  job         Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reporter    User              @relation("JobReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, status])
+  @@index([reporterId])
+}
+
+model AbuseReport {
+  id              String              @id @default(cuid())
+  reporterId      String
+  category        AbuseReportCategory
+  severity        AbuseReportSeverity @default(MEDIUM)
+  status          AbuseReportStatus   @default(OPEN)
+  targetType      AbuseTargetType
+  targetId        String
+  description     String
+  resolutionNote  String?
+  assignedAdminId String?
+  resolvedAt      DateTime?
+  archivedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  assignedAdmin   User?               @relation("AbuseAssignee", fields: [assignedAdminId], references: [id])
+  reporter        User                @relation("AbuseReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status, severity, createdAt])
+  @@index([targetType, targetId])
+  @@index([reporterId])
+}
+
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  adminUserId String
+  action      String
+  entityType  String
+  entityId    String
+  beforeState Json?
+  afterState  Json?
+  createdAt   DateTime @default(now())
+  admin       User     @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model UserRegistrationContact {
+  id             String   @id @default(cuid())
+  userId         String
+  email          String
+  phone          String?
+  country        String?
+  city           String?
+  referralSource String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([tokenHash])
+}
+
+model FreelancerCertification {
+  id                  String            @id @default(cuid())
+  freelancerProfileId String
+  title               String
+  issuer              String
+  issueDate           DateTime
+  expirationDate      DateTime?
+  credentialUrl       String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  freelancerProfile   FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([freelancerProfileId, issueDate])
+}
+
+model PlatformPopup {
+  id          String               @id @default(cuid())
+  title       String
+  body        String
+  ctaText     String?
+  ctaUrl      String?
+  imageFileId String?
+  enabled     Boolean              @default(false)
+  version     Int                  @default(1)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  dismissals  UserPopupDismissal[]
+
+  @@index([enabled, updatedAt])
+}
+
+model UserPopupDismissal {
+  id        String        @id @default(cuid())
+  userId    String
+  popupId   String
+  version   Int
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  popup     PlatformPopup @relation(fields: [popupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, popupId])
+  @@index([popupId])
+}
+
+model PlatformBanner {
+  id          String                @id @default(cuid())
+  title       String
+  body        String
+  ctaText     String?
+  ctaUrl      String?
+  imageFileId String?
+  sortOrder   Int                   @default(0)
+  enabled     Boolean               @default(false)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  dismissals  UserBannerDismissal[]
+
+  @@index([enabled, sortOrder])
+}
+
+model UserBannerDismissal {
+  id        String         @id @default(cuid())
+  userId    String
+  bannerId  String
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  banner    PlatformBanner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bannerId])
+  @@index([bannerId])
+}
+
+model ProfileView {
+  id           String   @id @default(cuid())
+  viewedUserId String
+  viewerUserId String?
+  viewerHash   String?
+  createdAt    DateTime @default(now())
+  viewedUser   User     @relation("ProfileViewed", fields: [viewedUserId], references: [id], onDelete: Cascade)
+  viewer       User?    @relation("ProfileViewer", fields: [viewerUserId], references: [id], onDelete: SetNull)
+
+  @@index([viewedUserId, createdAt])
+  @@index([viewerHash, viewedUserId, createdAt])
+}
+
+model KycSubmission {
+  id              String        @id @default(cuid())
+  userId          String        @unique
+  status          KycStatus     @default(PENDING)
+  whatsappNumber  String?
+  documentType    String?
+  documentNumber  String?
+  paymentId       String?
+  declineReason   String?
+  verifiedAt      DateTime?
+  expiresAt       DateTime?
+  renewalPaidAt   DateTime?
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  reviewedById    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
 
 enum Role {
   CLIENT
@@ -27,10 +1033,10 @@ enum ProjectStatus {
 
 enum ProposalStatus {
   PENDING
-  REVIEWED
   ACCEPTED
   REJECTED
   WITHDRAWN
+  REVIEWED
 }
 
 enum ContractStatus {
@@ -41,6 +1047,15 @@ enum ContractStatus {
   DISPUTED
 }
 
+enum MilestoneStatus {
+  PENDING
+  FUNDED
+  ACTIVE
+  SUBMITTED
+  APPROVED
+  RELEASED
+}
+
 enum EscrowStatus {
   AWAITING_FUNDING
   FUNDED
@@ -48,6 +1063,7 @@ enum EscrowStatus {
   RELEASED
   REFUNDED
   DISPUTED
+  PARTIALLY_FUNDED
 }
 
 enum EscrowRecordType {
@@ -85,6 +1101,7 @@ enum PaymentProvider {
   STRIPE
   PAYPAL
   OTHER
+  FLUTTERWAVE
 }
 
 enum WithdrawalStatus {
@@ -94,6 +1111,125 @@ enum WithdrawalStatus {
   COMPLETED
   REJECTED
   CANCELLED
+  UNDER_REVIEW
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  RESTRICTED
+}
+
+enum FreelancerPlanTier {
+  FREE
+  PLUS
+  PRO
+}
+
+enum ProjectModerationStatus {
+  ACTIVE
+  FLAGGED
+  UNDER_REVIEW
+  FROZEN
+  REMOVED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  ESCALATED
+  RESOLVED
+  DISMISSED
+}
+
+enum AbuseReportCategory {
+  FRAUD
+  SPAM
+  ABUSE
+  FAKE_PROJECT
+  PAYMENT_MISCONDUCT
+  OTHER
+}
+
+enum AbuseReportSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AbuseReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+  ARCHIVED
+}
+
+enum AbuseTargetType {
+  USER
+  PROJECT
+  JOB
+  PAYMENT
+  MESSAGE
+}
+
+enum JobStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  REJECTED
+  CLOSED
+  EXPIRED
+}
+
+enum JobApplicationStatus {
+  PENDING
+  REVIEWING
+  SHORTLISTED
+  INTERVIEWED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum JobReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  INTERNSHIP
+  FREELANCE
+}
+
+enum ExperienceLevel {
+  ENTRY
+  JUNIOR
+  MID
+  SENIOR
+  LEAD
+  EXECUTIVE
+}
+
+enum WorkMode {
+  REMOTE
+  ONSITE
+  HYBRID
+}
+
+enum SalaryType {
+  HOURLY
+  MONTHLY
+  YEARLY
+  FIXED
+  NEGOTIABLE
 }
 
 enum NotificationType {
@@ -105,6 +1241,32 @@ enum NotificationType {
   WITHDRAWAL
   REVIEW
   SYSTEM
+  MILESTONE
+  DISPUTE
+  SECURITY
+  JOB
+}
+
+enum NotificationCategory {
+  PROPOSAL
+  CONTRACT
+  MILESTONE
+  PAYMENT
+  ESCROW
+  WITHDRAWAL
+  MESSAGE
+  REVIEW
+  DISPUTE
+  SYSTEM
+  SECURITY
+  JOB
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
 }
 
 enum FilePurpose {
@@ -116,7 +1278,18 @@ enum FilePurpose {
   CONTRACT_DOCUMENT
   VERIFICATION
   WITHDRAWAL_PROOF
+  JOB_ATTACHMENT
+  JOB_APPLICATION_CV
+  JOB_APPLICATION_ATTACHMENT
+  JOB_COMPANY_LOGO
+  MARKETING_IMAGE
   OTHER
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum ReviewSubject {
@@ -124,521 +1297,9 @@ enum ReviewSubject {
   FREELANCER_TO_CLIENT
 }
 
-// ---------------------------------------------------------------------------
-// Core identity
-// ---------------------------------------------------------------------------
-
-model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  password     String
-  role         Role      @default(CLIENT)
-  emailVerified DateTime?
-  imageFileId  String?   @unique
-  imageFile    FileUpload? @relation("UserAvatar", fields: [imageFileId], references: [id])
-
-  freelancerProfile FreelancerProfile?
-  clientProfile     ClientProfile?
-
-  wallet Wallet?
-
-  conversationParticipants ConversationParticipant[]
-  messagesSent             Message[]               @relation("MessageSender")
-  notifications            Notification[]
-  fileUploads              FileUpload[]            @relation("UploadedBy")
-
-  reviewsWritten Review[] @relation("ReviewAuthor")
-  reviewsAbout   Review[] @relation("ReviewSubject")
-
-  passwordResetTokens PasswordResetToken[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([role, createdAt])
-}
-
-/// One-time password reset tokens (store hash only; raw token sent by email).
-model PasswordResetToken {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String
-  expiresAt DateTime
-  usedAt    DateTime?
-
-  createdAt DateTime @default(now())
-
-  @@index([userId, expiresAt])
-  @@index([tokenHash])
-}
-
-model FreelancerProfile {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  headline  String?
-  bio       String?
-  hourlyRate Decimal? @db.Decimal(12, 2)
-  isPublic   Boolean  @default(true)
-
-  ratingAverage Decimal @default(0) @db.Decimal(4, 2)
-  ratingCount   Int     @default(0)
-
-  skills          FreelancerSkill[]
-  proposals       Proposal[]
-  reviewsReceived Review[]          @relation("ReviewFreelancerProfile")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isPublic, ratingAverage])
-}
-
-model ClientProfile {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  companyName String?
-  websiteUrl  String?
-
-  projects        Project[]
-  reviewsReceived Review[]  @relation("ReviewClientProfile")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ---------------------------------------------------------------------------
-// Taxonomy
-// ---------------------------------------------------------------------------
-
-model Category {
-  id          String     @id @default(cuid())
-  name        String
-  slug        String     @unique
-  description String?
-  parentId    String?
-  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Category[] @relation("CategoryTree")
-
-  projects Project[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([parentId])
-}
-
-model Skill {
-  id   String @id @default(cuid())
-  name String @unique
-  slug String @unique
-
-  freelancers FreelancerSkill[]
-  projects    ProjectSkill[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model FreelancerSkill {
-  id                  String @id @default(cuid())
-  freelancerProfileId String
-  skillId             String
-  yearsExperience     Int?
-  proficiency         Int? // 1–5, optional
-
-  freelancerProfile FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
-  skill             Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([freelancerProfileId, skillId])
-  @@index([skillId])
-}
-
-model ProjectSkill {
-  id        String @id @default(cuid())
-  projectId String
-  skillId   String
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([projectId, skillId])
-  @@index([skillId])
-}
-
-// ---------------------------------------------------------------------------
-// Marketplace workflow
-// ---------------------------------------------------------------------------
-
-model Project {
-  id          String        @id @default(cuid())
-  title       String
-  description String
-  budgetMin   Decimal?      @db.Decimal(19, 4)
-  budgetMax   Decimal?      @db.Decimal(19, 4)
-  currency    String        @default("USD")
-  deadline    DateTime?
-  status      ProjectStatus @default(DRAFT)
-
-  clientId String
-  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-
-  proposals Proposal[]
-  contract  Contract?
-
-  skills       ProjectSkill[]
-  attachments  FileUpload[]   @relation("ProjectFiles")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([clientId, status])
-  @@index([categoryId, status])
-  @@index([status, createdAt])
-}
-
-model Proposal {
-  id             String         @id @default(cuid())
-  proposedPrice  Decimal        @db.Decimal(19, 4)
-  currency       String         @default("USD")
-  coverLetter    String
-  deliveryDays   Int?
-  status         ProposalStatus @default(PENDING)
-  withdrawnAt    DateTime?
-
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  freelancerId String
-  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
-
-  contract Contract?
-
-  attachments FileUpload[] @relation("ProposalFiles")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([projectId, freelancerId])
-  @@index([projectId, status])
-  @@index([freelancerId, status])
-}
-
-model Contract {
-  id           String         @id @default(cuid())
-  status       ContractStatus @default(PENDING)
-  agreedAmount Decimal        @db.Decimal(19, 4)
-  currency     String         @default("USD")
-  startsAt     DateTime?
-  endsAt       DateTime?
-
-  projectId String @unique
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  proposalId String @unique
-  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-
-  escrow    Escrow?
-  payments  Payment[]
-  reviews   Review[]
-  documents FileUpload[] @relation("ContractFiles")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status, createdAt])
-}
-
-// ---------------------------------------------------------------------------
-// Financials
-// ---------------------------------------------------------------------------
-
-model Wallet {
-  id       String  @id @default(cuid())
-  userId   String  @unique
-  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currency String  @default("USD")
-  balance  Decimal @default(0) @db.Decimal(19, 4)
-
-  transactions        Transaction[]
-  paymentsAsPayer     Payment[]           @relation("PayerWallet")
-  paymentsAsPayee     Payment[]           @relation("PayeeWallet")
-  withdrawalRequests  WithdrawalRequest[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Transaction {
-  id          String          @id @default(cuid())
-  type        TransactionType
-  amount      Decimal         @db.Decimal(19, 4)
-  currency    String          @default("USD")
-  description String?
-  idempotencyKey String?      @unique
-
-  balanceAfter Decimal? @db.Decimal(19, 4)
-
-  walletId String
-  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
-
-  paymentId             String?
-  payment               Payment?             @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  withdrawalRequestId   String?
-  withdrawalRequest     WithdrawalRequest? @relation(fields: [withdrawalRequestId], references: [id], onDelete: SetNull)
-  escrowRecordId        String?            @unique
-  escrowRecord          EscrowRecord?       @relation(fields: [escrowRecordId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-
-  @@index([walletId, createdAt])
-  @@index([type, createdAt])
-}
-
-/// Business-level payment (gateway / invoice), linked to ledger `Transaction` rows.
-model Payment {
-  id            String          @id @default(cuid())
-  amount        Decimal         @db.Decimal(19, 4)
-  currency      String          @default("USD")
-  status        PaymentStatus   @default(PENDING)
-  provider      PaymentProvider @default(INTERNAL)
-  providerRef   String?
-  failureReason String?
-
-  contractId String?
-  contract   Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
-
-  payerWalletId String?
-  payerWallet   Wallet? @relation("PayerWallet", fields: [payerWalletId], references: [id], onDelete: SetNull)
-  payeeWalletId String?
-  payeeWallet   Wallet? @relation("PayeeWallet", fields: [payeeWalletId], references: [id], onDelete: SetNull)
-
-  transactions Transaction[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status, createdAt])
-  @@index([contractId])
-  @@index([provider, providerRef])
-}
-
-model WithdrawalRequest {
-  id            String            @id @default(cuid())
-  amount        Decimal           @db.Decimal(19, 4)
-  currency      String            @default("USD")
-  status        WithdrawalStatus  @default(PENDING)
-  payoutMethod  String // e.g. bank_transfer, mobile_money
-  payoutDetails Json? // masked destination metadata (never store full PAN)
-
-  walletId String
-  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
-
-  transactions Transaction[]
-  attachments  FileUpload[] @relation("WithdrawalFiles")
-
-  reviewedAt DateTime?
-  reviewNote String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([walletId, status])
-  @@index([status, createdAt])
-}
-
-model Escrow {
-  id              String       @id @default(cuid())
-  contractId      String       @unique
-  contract        Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  status          EscrowStatus @default(AWAITING_FUNDING)
-  fundedAmount    Decimal      @default(0) @db.Decimal(19, 4)
-  releasedAmount  Decimal      @default(0) @db.Decimal(19, 4)
-  currency        String       @default("USD")
-  fundedAt        DateTime?
-  fullyReleasedAt DateTime?
-
-  records EscrowRecord[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status])
-}
-
-/// Append-only style ledger lines for escrow lifecycle (pairs with `Transaction` when money moves).
-model EscrowRecord {
-  id       String           @id @default(cuid())
-  type     EscrowRecordType
-  amount   Decimal          @db.Decimal(19, 4)
-  currency String           @default("USD")
-  note     String?
-
-  escrowId String
-  escrow   Escrow @relation(fields: [escrowId], references: [id], onDelete: Cascade)
-
-  transaction Transaction?
-
-  createdAt DateTime @default(now())
-
-  @@index([escrowId, createdAt])
-  @@index([type, createdAt])
-}
-
-// ---------------------------------------------------------------------------
-// Social & comms
-// ---------------------------------------------------------------------------
-
-model Review {
-  id      String        @id @default(cuid())
-  rating  Int // 1–5 enforced in app layer or DB check
-  comment String?
-  subject ReviewSubject
-
-  contractId String
-  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-
-  authorUserId String
-  authorUser   User   @relation("ReviewAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
-
-  subjectUserId String
-  subjectUser   User   @relation("ReviewSubject", fields: [subjectUserId], references: [id], onDelete: Cascade)
-
-  freelancerProfileId String?
-  freelancerProfile   FreelancerProfile? @relation("ReviewFreelancerProfile", fields: [freelancerProfileId], references: [id], onDelete: SetNull)
-  clientProfileId     String?
-  clientProfile       ClientProfile?     @relation("ReviewClientProfile", fields: [clientProfileId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([contractId, authorUserId])
-  @@index([subjectUserId, createdAt])
-  @@index([freelancerProfileId])
-  @@index([clientProfileId])
-}
-
-model Notification {
-  id      String           @id @default(cuid())
-  type    NotificationType
-  title   String
-  body    String
-  read    Boolean          @default(false)
-  readAt  DateTime?
-  data    Json?
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([userId, read, createdAt])
-  @@index([createdAt])
-}
-
-model Conversation {
-  id       String @id @default(cuid())
-  subject  String?
-  projectId String?
-
-  participants ConversationParticipant[]
-  messages     Message[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-}
-
-model ConversationParticipant {
-  id             String    @id @default(cuid())
-  conversationId String
-  userId         String
-  lastReadAt     DateTime?
-  muted          Boolean   @default(false)
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  joinedAt DateTime @default(now())
-
-  @@unique([conversationId, userId])
-  @@index([userId, conversationId])
-}
-
-model Message {
-  id        String @id @default(cuid())
-  content   String
-  senderId  String
-  sender    User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  replyToId String?
-  replyTo   Message?  @relation("MessageThread", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies   Message[] @relation("MessageThread")
-
-  readAt DateTime?
-
-  attachments FileUpload[] @relation("MessageFiles")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([conversationId, createdAt])
-  @@index([senderId, createdAt])
-}
-
-// ---------------------------------------------------------------------------
-// Files
-// ---------------------------------------------------------------------------
-
-model FileUpload {
-  id           String      @id @default(cuid())
-  purpose      FilePurpose @default(OTHER)
-  storageKey   String      @unique
-  originalName String
-  mimeType     String
-  sizeBytes    Int
-  checksum     String?
-
-  uploadedByUserId String
-  uploadedBy       User   @relation("UploadedBy", fields: [uploadedByUserId], references: [id], onDelete: Cascade)
-
-  userAvatar User? @relation("UserAvatar")
-
-  projectId String?
-  project   Project? @relation("ProjectFiles", fields: [projectId], references: [id], onDelete: Cascade)
-
-  proposalId String?
-  proposal   Proposal? @relation("ProposalFiles", fields: [proposalId], references: [id], onDelete: Cascade)
-
-  contractId String?
-  contract   Contract? @relation("ContractFiles", fields: [contractId], references: [id], onDelete: Cascade)
-
-  messageId String?
-  message   Message? @relation("MessageFiles", fields: [messageId], references: [id], onDelete: Cascade)
-
-  withdrawalRequestId String?
-  withdrawalRequest   WithdrawalRequest? @relation("WithdrawalFiles", fields: [withdrawalRequestId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([uploadedByUserId, createdAt])
-  @@index([projectId])
-  @@index([messageId])
+enum KycStatus {
+  PENDING
+  VERIFIED
+  DECLINED
+  EXPIRED
 }
