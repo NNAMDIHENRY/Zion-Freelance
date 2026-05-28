@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 import { NotificationCategory, NotificationPriority } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
