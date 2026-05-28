@@ -1,8 +1,5 @@
 import "server-only";
-
 import crypto from "crypto";
-import { headers } from "next/headers";
-
 import { prisma } from "@/lib/db";
 
 const VIEW_COOLDOWN_MS = 30 * 60 * 1000;
@@ -10,10 +7,12 @@ const VIEW_COOLDOWN_MS = 30 * 60 * 1000;
 export async function recordProfileView(params: {
   viewedUserId: string;
   viewerUserId?: string | null;
+  ip: string;
+  userAgent: string;
 }) {
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anon";
-  const ua = h.get("user-agent") ?? "";
+  const ip = params.ip ?? "anon";
+  const ua = params.userAgent ?? "";
+
   const viewerHash = crypto
     .createHash("sha256")
     .update(`${ip}:${ua}:${params.viewedUserId}`)
@@ -22,6 +21,7 @@ export async function recordProfileView(params: {
   if (params.viewerUserId === params.viewedUserId) return;
 
   const since = new Date(Date.now() - VIEW_COOLDOWN_MS);
+
   const recent = await prisma.profileView.findFirst({
     where: {
       viewedUserId: params.viewedUserId,
@@ -29,9 +29,12 @@ export async function recordProfileView(params: {
       OR: [
         params.viewerUserId ? { viewerUserId: params.viewerUserId } : undefined,
         { viewerHash }
-      ].filter(Boolean) as Array<{ viewerUserId: string } | { viewerHash: string }>
+      ].filter(Boolean) as Array<
+        { viewerUserId: string } | { viewerHash: string }
+      >
     }
   });
+
   if (recent) return;
 
   await prisma.$transaction(async (tx) => {
@@ -47,6 +50,7 @@ export async function recordProfileView(params: {
       where: { userId: params.viewedUserId },
       select: { id: true }
     });
+
     if (freelancer) {
       await tx.freelancerProfile.update({
         where: { id: freelancer.id },
@@ -59,6 +63,7 @@ export async function recordProfileView(params: {
       where: { userId: params.viewedUserId },
       select: { id: true }
     });
+
     if (client) {
       await tx.clientProfile.update({
         where: { id: client.id },
