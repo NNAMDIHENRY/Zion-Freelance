@@ -1,16 +1,19 @@
 import { NotificationCategory } from "@prisma/client";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-import { authOptions } from "@/lib/auth/options";
+import { auth } from "@/lib/auth";
 import {
   getPreferencesForUser,
   updateNotificationPreferences
 } from "@/lib/notifications/preferences";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -28,7 +31,8 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -51,7 +55,9 @@ export async function PUT(req: Request) {
     for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
       if (!(key in NotificationCategory)) continue;
       if (!value || typeof value !== "object") continue;
+
       const row = value as Record<string, unknown>;
+
       updates[key as NotificationCategory] = {
         ...(typeof row.inApp === "boolean" ? { inApp: row.inApp } : {}),
         ...(typeof row.email === "boolean" ? { email: row.email } : {}),
@@ -61,6 +67,7 @@ export async function PUT(req: Request) {
 
     await updateNotificationPreferences(session.user.id, updates);
     const preferences = await getPreferencesForUser(session.user.id);
+
     return NextResponse.json({ ok: true, preferences });
   } catch (error) {
     console.error("PUT /api/notifications/preferences", error);
