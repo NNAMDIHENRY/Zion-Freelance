@@ -1,10 +1,18 @@
-import { Role } from "@prisma/client";
 import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const AUTH_PREFIX = "/auth";
-const AUTH_PUBLIC_WHEN_LOGGED_IN = ["/auth/reset-password", "/auth/verify-email"];
+const AUTH_PUBLIC_WHEN_LOGGED_IN = [
+  "/auth/reset-password",
+  "/auth/verify-email"
+];
+
+const Role = {
+  ADMIN: "ADMIN",
+  CLIENT: "CLIENT",
+  FREELANCER: "FREELANCER"
+} as const;
 
 function loginAllowedWhenLoggedIn(pathname: string, search: string) {
   if (pathname !== "/auth/login") return false;
@@ -12,7 +20,7 @@ function loginAllowedWhenLoggedIn(pathname: string, search: string) {
   return params.get("reset") === "success";
 }
 
-const ROLE_ROUTES: Array<{ prefix: string; role: Role }> = [
+const ROLE_ROUTES = [
   { prefix: "/admin", role: Role.ADMIN },
   { prefix: "/client", role: Role.CLIENT },
   { prefix: "/freelancer", role: Role.FREELANCER }
@@ -24,16 +32,19 @@ export async function middleware(request: NextRequest) {
   const secret = process.env.NEXTAUTH_SECRET;
   const token = secret ? await getToken({ req: request, secret }) : null;
 
-  const isAuthArea = pathname === AUTH_PREFIX || pathname.startsWith(`${AUTH_PREFIX}/`);
+  const isAuthArea =
+    pathname === AUTH_PREFIX || pathname.startsWith(`${AUTH_PREFIX}/`);
 
   if (isAuthArea) {
     const allowWhenLoggedIn =
       AUTH_PUBLIC_WHEN_LOGGED_IN.some(
         (p) => pathname === p || pathname.startsWith(`${p}/`)
       ) || loginAllowedWhenLoggedIn(pathname, search);
+
     if (token && !allowWhenLoggedIn) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
+
     return NextResponse.next();
   }
 
@@ -43,9 +54,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/client") ||
     pathname.startsWith("/freelancer");
 
-  if (!isProtected) {
-    return NextResponse.next();
-  }
+  if (!isProtected) return NextResponse.next();
 
   if (!token) {
     const login = new URL("/auth/login", request.url);
@@ -59,7 +68,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(verify);
   }
 
-  const role = token.role as Role | undefined;
+  const role = token.role as keyof typeof Role | undefined;
 
   for (const { prefix, role: allowed } of ROLE_ROUTES) {
     if (pathname.startsWith(prefix) && role !== allowed) {
