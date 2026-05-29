@@ -38,13 +38,15 @@ export async function createSubscriptionUpgradeSession(userId: string, tier: Fre
   if (!user) return { ok: false as const, error: "User not found" };
 
   const txRef = generateTxRef("plan");
-  const redirectUrl = `${paymentEnv.appUrl}${PAYMENT_CALLBACK_PATH}?tx_ref=${encodeURIComponent(txRef)}&plan=${tier}`;
+  const baseUrl = paymentEnv.appUrl?.replace(/\/$/, "");
 
+  const redirectUrl =
+    `${baseUrl}${PAYMENT_CALLBACK_PATH}?tx_ref=${encodeURIComponent(txRef)}&plan=${tier}`;
   const attempt = await prisma.paymentAttempt.create({
     data: {
       purpose: PaymentAttemptPurpose.SUBSCRIPTION_UPGRADE,
       amount: plan.priceUsd,
-      currency: "NGN",
+      currency: "USD",
       txRef,
       userId,
       redirectUrl,
@@ -72,7 +74,6 @@ export async function createSubscriptionUpgradeSession(userId: string, tier: Fre
 
     return { ok: true as const, data: { checkoutUrl, txRef } };
   } catch (e) {
-    console.log("FLUTTERWAVE INIT RAW:", JSON.stringify(res, null, 2));
     console.error("CHECKOUT ERROR FULL:", e);
   
     await prisma.paymentAttempt.update({

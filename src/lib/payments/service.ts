@@ -101,8 +101,10 @@ export async function createWalletFundingSession(
   const wallet = await ensureWalletForUser(userId);
   const user = await getUserEmail(userId);
   const txRef = generateTxRef("wallet");
-  const redirectUrl = `${paymentEnv.appUrl}${PAYMENT_CALLBACK_PATH}?tx_ref=${encodeURIComponent(txRef)}`;
+  const baseUrl = paymentEnv.appUrl?.replace(/\/$/, "");
 
+const redirectUrl =
+  `${baseUrl}${PAYMENT_CALLBACK_PATH}?tx_ref=${encodeURIComponent(txRef)}`;
   const attempt = await prisma.paymentAttempt.create({
     data: {
       purpose: PaymentAttemptPurpose.WALLET_FUND,
@@ -175,8 +177,10 @@ export async function createEscrowFundingSession(
   const wallet = await ensureWalletForUser(userId);
   const user = await getUserEmail(userId);
   const txRef = generateTxRef("escrow");
-  const redirectUrl = `${paymentEnv.appUrl}${PAYMENT_CALLBACK_PATH}?tx_ref=${encodeURIComponent(txRef)}&contractId=${contractId}`;
+  const baseUrl = paymentEnv.appUrl?.replace(/\/$/, "");
 
+const redirectUrl =
+  `${baseUrl}${PAYMENT_CALLBACK_PATH}?tx_ref=${encodeURIComponent(txRef)}`;
   const attempt = await prisma.paymentAttempt.create({
     data: {
       purpose: PaymentAttemptPurpose.ESCROW_FUND,
