@@ -31,10 +31,6 @@ export function assertFlutterwaveEnv() {
 }
 
 export function isFlutterwaveConfigured(): boolean {
-  console.log("APP URL:", paymentEnv.appUrl);
-  console.log("SECRET:", paymentEnv.flutterwaveSecretKey);
-  console.log("PUBLIC:", paymentEnv.flutterwavePublicKey);
-  console.log("WEBHOOK:", paymentEnv.flutterwaveWebhookSecret);
   return Boolean(
     paymentEnv.flutterwaveSecretKey &&
     paymentEnv.flutterwavePublicKey &&

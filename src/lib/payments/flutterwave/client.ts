@@ -33,20 +33,20 @@ export async function logProviderCall(params: {
   paymentAttemptId?: string;
   paymentId?: string;
 }) {
-  await prisma.paymentProviderLog.create({
-    data: {
-      provider: PaymentProvider.FLUTTERWAVE,
-      direction: params.direction,
-      endpoint: params.endpoint,
-      statusCode: params.statusCode,
-      success: params.success,
-      payload: params.payload as object | undefined,
-      errorMessage: params.errorMessage,
-      paymentAttemptId: params.paymentAttemptId,
-      paymentId: params.paymentId
-    }
-  });
-}
+//   await prisma.paymentProviderLog.create({
+//     data: {
+//       provider: PaymentProvider.FLUTTERWAVE,
+//       direction: params.direction,
+//       endpoint: params.endpoint,
+//       statusCode: params.statusCode,
+//       success: params.success,
+//       payload: params.payload as object | undefined,
+//       errorMessage: params.errorMessage,
+//       paymentAttemptId: params.paymentAttemptId,
+//       paymentId: params.paymentId
+//     }
+//   });
+ }
 
 async function flutterwaveFetch<T>(
   path: string,
