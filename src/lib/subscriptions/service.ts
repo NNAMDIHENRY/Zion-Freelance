@@ -46,7 +46,7 @@ export async function createSubscriptionUpgradeSession(userId: string, tier: Fre
     data: {
       purpose: PaymentAttemptPurpose.SUBSCRIPTION_UPGRADE,
       amount: plan.priceUsd,
-      currency: "USD",
+      currency: "NGN",
       txRef,
       userId,
       redirectUrl,
@@ -59,7 +59,7 @@ export async function createSubscriptionUpgradeSession(userId: string, tier: Fre
     const { checkoutUrl } = await initializeFlutterwavePayment({
       txRef,
       amount: plan.priceUsd,
-      currency: "USD",
+      currency: "NGN",
       email: user.email,
       name: user.name,
       redirectUrl,
