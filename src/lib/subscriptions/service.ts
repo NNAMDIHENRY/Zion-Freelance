@@ -72,14 +72,20 @@ export async function createSubscriptionUpgradeSession(userId: string, tier: Fre
 
     return { ok: true as const, data: { checkoutUrl, txRef } };
   } catch (e) {
+    console.error("CHECKOUT ERROR FULL:", e);
+  
     await prisma.paymentAttempt.update({
       where: { id: attempt.id },
       data: {
         status: PaymentAttemptStatus.FAILED,
-        failureReason: e instanceof Error ? e.message : "Failed"
+        failureReason: e instanceof Error ? e.message : JSON.stringify(e)
       }
     });
-    return { ok: false as const, error: "Could not start checkout" };
+  
+    return {
+      ok: false as const,
+      error: e instanceof Error ? e.message : "Could not start checkout"
+    };
   }
 }
 
