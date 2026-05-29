@@ -60,13 +60,21 @@ async function flutterwaveFetch<T>(
   const res = await fetch(url, {
     ...init,
     headers: {
-      Authorization: `Bearer ${secret}`,
+      Authorization: secret,
       "Content-Type": "application/json",
+      "Accept": "application/json",
       ...(init.headers ?? {})
     }
   });
 
-  const body = (await res.json().catch(() => ({}))) as T & { message?: string };
+  const text = await res.text();
+
+let body;
+try {
+  body = JSON.parse(text);
+} catch {
+  body = { message: text };
+}
 
   await logProviderCall({
     direction: "response",
@@ -117,6 +125,8 @@ export async function initializeFlutterwavePayment(input: InitializePaymentInput
     { method: "POST", body: JSON.stringify(payload) },
     { paymentAttemptId: input.paymentAttemptId }
   );
+  
+  console.log("FLUTTERWAVE RAW RESPONSE:", res);
 
   if (res.status !== "success" || !res.data?.link) {
     throw new Error(res.message ?? "Failed to initialize payment");
