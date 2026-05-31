@@ -1,13 +1,33 @@
 import { NextResponse } from "next/server";
+import { verifyAndSettlePayment } from "@/lib/payments/service";
+import { verifyWebhookSignature } from "@/lib/payments/flutterwave/client";
 
-import { processFlutterwaveWebhook } from "@/lib/payments/webhook";
+export async function POST(req: Request) {
+  const signature = req.headers.get("verif-hash"); // Flutterwave header
 
-export const runtime = "nodejs";
+  if (!verifyWebhookSignature(signature)) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
 
-export async function POST(request: Request) {
-  const rawBody = await request.text();
-  const verifHash = request.headers.get("verif-hash");
+  const body = await req.json();
 
-  const result = await processFlutterwaveWebhook({ rawBody, verifHash });
-  return NextResponse.json({ message: result.message }, { status: result.status });
+  const txRef = body?.data?.tx_ref;
+
+  if (!txRef) {
+    return NextResponse.json({ error: "Missing tx_ref" }, { status: 400 });
+  }
+
+  try {
+    // 🔥 THIS IS THE ONLY PLACE PAYMENT IS CONFIRMED
+    await verifyAndSettlePayment(txRef);
+
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("Webhook error:", e);
+
+    return NextResponse.json(
+      { error: "Settlement failed" },
+      { status: 500 }
+    );
+  }
 }

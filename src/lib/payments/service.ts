@@ -298,17 +298,16 @@ export async function fundEscrowFromWallet(
  * Server-side verification — idempotent settlement for wallet / escrow checkout.
  */
 export async function verifyAndSettlePayment(
-  txRef: string,
-  actingUserId?: string
+  txRef: string
 ): Promise<PaymentServiceResult<{ purpose: PaymentAttemptPurpose; contractId?: string }>> {
   const attempt = await prisma.paymentAttempt.findUnique({
     where: { txRef },
     include: { payment: true, user: { select: { email: true } } }
   });
   if (!attempt) return fail("Payment attempt not found", "NOT_FOUND");
-  if (actingUserId && attempt.userId !== actingUserId) {
-    return fail("Unauthorized payment verification", "FORBIDDEN");
-  }
+  // if (actingUserId && attempt.userId !== actingUserId) {
+  //   return fail("Unauthorized payment verification", "FORBIDDEN");
+  // }
 
   if (attempt.status === PaymentAttemptStatus.SUCCEEDED && attempt.paymentId) {
     return {

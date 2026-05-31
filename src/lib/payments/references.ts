@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 
 const PREFIX = "zion";
 
-export function generateTxRef(purpose: "wallet" | "escrow"): string {
+export function generateTxRef(purpose: "wallet" | "escrow" | "plan"): string {
   const stamp = Date.now().toString(36);
   const rand = randomBytes(6).toString("hex");
   return `${PREFIX}_${purpose}_${stamp}_${rand}`;
