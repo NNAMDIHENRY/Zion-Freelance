@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyAndSettlePayment } from "@/lib/payments/service";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -6,16 +7,20 @@ export async function GET(request: Request) {
   const txRef = url.searchParams.get("tx_ref");
 
   if (!txRef) {
-    return NextResponse.json(
-      { error: "Missing tx_ref" },
-      { status: 400 }
+    return NextResponse.redirect(
+      new URL("/client/payments?payment=error&missing=tx_ref", request.url)
+    );
+  }
+
+  try {
+    await verifyAndSettlePayment(txRef);
+  } catch (e) {
+    return NextResponse.redirect(
+      new URL("/client/payments?payment=failed", request.url)
     );
   }
 
   return NextResponse.redirect(
-    new URL(
-      `/client/payments/pending?tx_ref=${encodeURIComponent(txRef)}`,
-      request.url
-    )
+    new URL("/client/payments?payment=success", request.url)
   );
 }
