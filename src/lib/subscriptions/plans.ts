@@ -23,7 +23,7 @@ export const FREELANCER_PLANS: PlanDefinition[] = [
   {
     tier: FreelancerPlanTier.PLUS,
     name: "Plus",
-    priceUsd: 19,
+    priceUsd: 1000,
     cadence: "/ mo",
     description: "Rank higher in client search and talent spotlights.",
     features: ["Priority search ranking", "Featured eligibility", "Profile highlight badge"],
